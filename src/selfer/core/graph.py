@@ -1,8 +1,11 @@
 from langgraph.graph import StateGraph, END
+from langgraph.prebuilt import ToolNode
 from selfer.core.state import SelferState
 from selfer.agents.router import router_node, route_edge, casual_node
 from selfer.agents.planner import planner_node
 from selfer.agents.interrogate import user_interrogation_node
+from selfer.agents.executor import executor_node
+from selfer.agents.tools import selfer_tools
 
 try:
     from selfer.core.logger import logger
@@ -25,16 +28,34 @@ def create_selfer_graph() -> StateGraph:
     workflow.add_node("planner", planner_node)
     workflow.add_node("casual", casual_node)
     workflow.add_node("interrogate", user_interrogation_node)
+    workflow.add_node("executor", executor_node)
     
-    # Execution sub-nodes like 'executor' will be added in Phase 8, 
-    # for now we'll mock route them or bypass.
+    # Use prebuilt LangGraph ToolNode for executing bounded tools
+    tool_node = ToolNode(selfer_tools)
+    workflow.add_node("tools", tool_node)
     
     def planner_edge(state: SelferState):
         """ Checks if the Planner array requires execution, or asks user for validation """
         v = state.get("variables", {})
         if v.get("blocked_on_user"):
             return "interrogate"
-        return END
+        return "executor"
+        
+    def executor_edge(state: SelferState):
+        """ Routes between Executor, Tools, and End """
+        messages = state.get("messages", [])
+        v = state.get("variables", {})
+        
+        if v.get("plan_finished"):
+            return END
+            
+        last_message = messages[-1]
+        if hasattr(last_message, "tool_calls") and last_message.tool_calls:
+            return "tools"
+            
+        # If no tool calls and not finished, loop back or end
+        # In a robust system we check if step incremented
+        return "executor"
 
     # Add Edges
     workflow.set_entry_point("router")
@@ -57,10 +78,23 @@ def create_selfer_graph() -> StateGraph:
         planner_edge,
         {
             "interrogate": "interrogate",
+            "executor": "executor",
             END: END
         }
     )
     workflow.add_edge("interrogate", END) # The process stops until user re-triggers entry via router
+    
+    # Executor loops
+    workflow.add_conditional_edges(
+        "executor",
+        executor_edge,
+        {
+            "tools": "tools",
+            "executor": "executor",
+            END: END
+        }
+    )
+    workflow.add_edge("tools", "executor")
     
     # Compile with memory (sqlite saver missing natively so just regular compile for now)
     app = workflow.compile()

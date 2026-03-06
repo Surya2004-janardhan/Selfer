@@ -1,352 +1,178 @@
-# 🤖 Selfer
+# Selfer
 
-**Selfer** is a local-first, multi-agent AI orchestration system that lets you control your software development workflow from the command line or your phone via Telegram. Point it at any Git repository, give it a high-level objective, and Selfer's agent pipeline plans, edits files, runs commands, and commits code — all autonomously.
+**Local-First Autonomous Developer Agent** — a multi-agent AI system that lives in your repository, understands your codebase, and executes complex coding tasks through natural language.
 
----
-
-## Table of Contents
-
-- [Features](#features)
-- [Architecture](#architecture)
-- [Agent Pipeline](#agent-pipeline)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Configuration](#configuration)
-  - [LLM Providers](#llm-providers)
-  - [Telegram Integration](#telegram-integration)
-- [Usage](#usage)
-  - [CLI Commands](#cli-commands)
-  - [Example Workflow](#example-workflow)
-- [Project Structure](#project-structure)
-- [Memory & State](#memory--state)
-- [Security](#security)
-- [Contributing](#contributing)
+```
+ ██████╗███████╗██╗     ███████╗███████╗██████╗ 
+██╔════╝██╔════╝██║     ██╔════╝██╔════╝██╔══██╗
+╚█████╗ █████╗  ██║     █████╗  █████╗  ██████╔╝
+ ╚═══██╗██╔══╝  ██║     ██╔══╝  ██╔══╝  ██╔══██╗
+██████╔╝███████╗███████╗██║     ███████╗██║  ██║
+╚═════╝ ╚══════╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝
+```
 
 ---
 
 ## Features
 
-- **Local-first by default** — runs on your own machine using [Ollama](https://ollama.com/) with no data leaving your environment unless you choose a cloud provider.
-- **Multi-provider LLM support** — seamlessly switch between Ollama, OpenAI, Anthropic Claude, Google Gemini, and Groq.
-- **LangGraph orchestration** — a cyclic, stateful agent graph handles planning, execution, clarification, and error recovery.
-- **Telegram gateway** — send instructions and receive progress updates directly from your phone via a Telegram bot.
-- **Autonomous file operations** — creates and edits source files with path-safety checks to prevent escaping the repository root.
-- **Git-aware** — runs `git status`, `git diff`, creates branches, and commits changes programmatically.
-- **Persistent memory** — chat history and session state are stored in a local SQLite database inside `.selfer/`.
-- **Rich CLI** — colorful, formatted terminal output powered by [Rich](https://github.com/Textualize/rich).
+- **Multi-Agent LangGraph** — Router → Planner → Executor loop with bounded tool calls
+- **Local ChromaDB Vector Memory** — 400-token chunks, 80-token overlap, 6 max results (OpenClaw parity)
+- **Async Event Queue** — Node.js-style concurrent task execution without blocking I/O
+- **Per-Agent Venv-Aware Terminals** — Each sub-agent spawns isolated processes in the correct Python environment
+- **Dual-Stack Logging** — Fresh per-query Rich CLI logger + silent global audit trail in `.selfer/logs/audit.log`
+- **Two-Tier Session Memory** — Per-query `QuerySession` + global `RepoSession` with atomic disk flushes
+- **Token-Efficient Routing** — Shared context prefix injected into every LLM call; no full repo tree re-sent
+- **LLM Retry with Backoff** — Exponential backoff on transient failures, smart skip on auth/quota errors
+- **Telegram Bot** — Full async bot with `/start`, `/status`, `/queue`, `/stop`, `/task`, `/agents` commands and live progress edits
+- **Graceful Shutdown** — SIGTERM/SIGINT handlers flush all sessions before exit
 
 ---
 
-## Architecture
+## Quick Start
 
-```
-User (CLI / Telegram)
-        │
-        ▼
-  ┌─────────────┐
-  │   Router    │  ← Master Supervisor: classifies intent (planning vs. casual)
-  └──────┬──────┘
-         │
-   ┌─────┴──────┐
-   ▼            ▼
-Planner      Casual
-   │          Node
-   ▼
-Interrogate  ← Pauses for user input on ambiguous tasks
-   │
-   ▼
-(Future: Executor → File Creator / Editor / Runner / Git Agent)
-```
+### Prerequisites
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/) (`pip install uv`)
+- Ollama (optional, for local LLM)
 
-The agent graph is built with [LangGraph](https://github.com/langchain-ai/langgraph) and compiled into a stateful `StateGraph`. Each node reads from and writes to a shared `SelferState` object that carries messages, the active plan, the current step counter, repository context, and free-form variables.
-
----
-
-## Agent Pipeline
-
-| Agent | Responsibility |
-|---|---|
-| **Router** | Supervisor node; classifies whether the latest user message needs a plan or is casual conversation. |
-| **Planner** | Breaks a user objective down into a JSON array of ordered steps using the repository tree as context. |
-| **Casual** | Replies directly to non-actionable conversational messages without entering the planning loop. |
-| **Interrogate** | Detects ambiguity, halts execution, and waits for user clarification via CLI or Telegram. |
-| **File Creator** | Safely creates new files inside the repository root with Pydantic-validated path inputs. |
-| **File Editor** | Applies surgical partial-line replacements to existing files. |
-| **Runner** | Executes shell commands via `subprocess` with a security heuristics layer blocking destructive patterns. |
-| **Git Agent** | Wraps common Git operations: `status`, `diff`, `commit`, and branch creation. |
-| **Summary Agent** | Condenses long message histories into brief recaps to keep token usage under control. |
-| **Retriever** | Semantic search over the codebase to locate specific functions or symbols for the Planner. |
-| **Directory Mapper** | Generates and persists a JSON tree of the repository structure (ignoring common noise directories). |
-
----
-
-## Prerequisites
-
-- **Python 3.11+**
-- **[uv](https://github.com/astral-sh/uv)** (recommended) _or_ `pip` for dependency management
-- **Git** installed and available on `PATH`
-- At least one LLM backend (see [LLM Providers](#llm-providers)):
-  - Local: [Ollama](https://ollama.com/) with a pulled model (e.g. `llama3`)
-  - Cloud: an API key for OpenAI, Anthropic, Google, or Groq
-
----
-
-## Installation
-
-### Using uv (recommended)
+### Install
 
 ```bash
-# Clone the repository
-git clone https://github.com/Surya2004-janardhan/Selfer.git
-cd Selfer
-
-# Install dependencies and create a virtual environment
+git clone <your-repo>
+cd your-project
 uv sync
-
-# The `selfer` command is now available inside the venv
-uv run selfer --help
 ```
 
-### Using pip
+### Initialize Selfer in your repo
 
 ```bash
-git clone https://github.com/Surya2004-janardhan/Selfer.git
-cd Selfer
-
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-
-pip install -e .
-selfer --help
+selfer init
 ```
 
----
+This creates `.selfer/` with `config.json`, `memory.db`, `chroma_db/`, session storage, and a log directory.
 
-## Configuration
+### Configure
 
-### Environment Variables
-
-Create a `.env` file in your repository root (Selfer loads it automatically via `python-dotenv`):
-
-```dotenv
-# ── LLM Providers ────────────────────────────────────────────────────────────
-# Leave unset to use local Ollama (no key required)
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-GOOGLE_API_KEY=AIza...
-GROQ_API_KEY=gsk_...
-
-# Override the Ollama server URL (default: http://localhost:11434)
-OLLAMA_BASE_URL=http://localhost:11434
-
-# ── Telegram ─────────────────────────────────────────────────────────────────
-TELEGRAM_BOT_TOKEN=123456:ABC-...
-```
-
-### `.selfer/config.json`
-
-Running `selfer init` generates a `.selfer/` directory in your project with a `config.json` you can edit:
+Edit `.selfer/config.json`:
 
 ```json
 {
   "bot_name": "Selfer",
-  "user_name": "Master",
   "preferred_model": "llama3",
   "fallback_model": "gpt-4o",
-  "ignore_patterns": [".env", ".git", "node_modules", ".venv", "__pycache__"],
   "authorized_telegram_users": ["your_telegram_username"]
 }
 ```
 
-| Key | Description |
+Set API keys in `.env`:
+
+```env
+TELEGRAM_BOT_TOKEN=your_token
+OPENAI_API_KEY=sk-...
+GEMINI_API_KEY=...
+GROQ_API_KEY=...
+ANTHROPIC_API_KEY=...
+```
+
+### Start
+
+```bash
+selfer start
+```
+
+Or without Telegram:
+
+```bash
+selfer start --no-telegram
+```
+
+---
+
+## CLI Commands
+
+| Command | Description |
 |---|---|
-| `preferred_model` | The model Selfer uses by default. Accepts Ollama model names (`llama3`, `mistral`, …) or cloud IDs (`gpt-4o`, `claude-3-5-sonnet-20240620`, `gemini-1.5-pro`, `llama3-70b-8192`). |
-| `fallback_model` | Used when the preferred provider's API key is missing. |
-| `ignore_patterns` | Directories and files excluded from the repository tree scan. |
-| `authorized_telegram_users` | Telegram usernames (without `@`) allowed to send commands. Leave empty to allow all users. |
+| `selfer init` | Initialize workspace + index repo into ChromaDB |
+| `selfer start` | Start agent, event queue, and Telegram bot |
+| `selfer start --no-telegram` | Start CLI-only mode |
+| `selfer status` | Show all queued/running/completed jobs |
+| `selfer queue "<task>"` | Directly enqueue a task |
+| `selfer agents` | List all registered agents |
+| `selfer index` | Re-index repository into ChromaDB |
+| `selfer mode --bot-name X` | Set runtime persona |
 
-### LLM Providers
+---
 
-Selfer selects a provider automatically based on `preferred_model`. The mapping is:
+## Docker Deployment
 
-| `preferred_model` value | Provider used | Required env var |
+```bash
+# Build and run with docker-compose
+cp .env.example .env   # fill in your keys
+docker-compose up -d
+
+# Or plain docker
+docker build -t selfer .
+docker run -it --env-file .env -v $(pwd):/workspace selfer
+```
+
+For bundled local Ollama (zero API cost):
+```bash
+docker-compose up -d ollama
+docker-compose exec ollama ollama pull llama3
+docker-compose up selfer
+```
+
+---
+
+## Agent Architecture
+
+```
+User Input (CLI / Telegram)
+        │
+        ▼
+   ┌─────────┐
+   │  Router  │  ← Classifies intent (planner vs casual)
+   └────┬────┘
+        │
+   ┌────▼────────┐
+   │   Planner   │  ← Breaks objective into JSON step array
+   └────┬────────┘
+        │
+   ┌────▼────────┐     ┌──────────────────────────────┐
+   │  Executor   │ ←→  │  Tools                        │
+   └────┬────────┘     │  • file_creator / file_editor │
+        │              │  • retriever (ChromaDB RAG)    │
+        │              │  • runner (venv terminal)      │
+   ┌────▼────────┐     │  • git_agent                   │
+   │ Summarizer  │     └──────────────────────────────┘
+   └─────────────┘
+```
+
+---
+
+## Session Memory
+
+| Layer | Scope | Storage |
 |---|---|---|
-| `llama3`, `mistral`, any Ollama name | Ollama (local) | _(none)_ |
-| `gpt-4o`, `gpt-3.5-turbo` | OpenAI | `OPENAI_API_KEY` |
-| `claude-*` | Anthropic | `ANTHROPIC_API_KEY` |
-| `gemini-*` | Google Gemini | `GOOGLE_API_KEY` |
-| `groq`, `llama3-70b-8192`, any Groq model name | Groq | `GROQ_API_KEY` |
+| `QuerySession` | One user request | `.selfer/sessions/<id>.json` |
+| `RepoSession` | Entire workspace lifetime | `.selfer/repo_session.json` |
 
-If a required API key is missing, Selfer falls back to the local Ollama instance automatically.
-
-You can also override the provider at runtime by editing `config.json` or extending the `LLMFactory` in `src/selfer/core/llm.py`.
-
-### Telegram Integration
-
-1. Create a bot via [@BotFather](https://t.me/BotFather) on Telegram and copy the token.
-2. Add `TELEGRAM_BOT_TOKEN` to your `.env`.
-3. Add your Telegram username to `authorized_telegram_users` in `.selfer/config.json`.
-4. Run `selfer start` — the bot polls for incoming messages in the background while the CLI remains interactive.
-
-Send `/start` to your bot to confirm it's online. Any text message you send will be routed through the same LangGraph pipeline as CLI input.
+The `RepoSession` builds a **minimal context prefix** prepended to every LLM call — avoiding retransmission of large repo trees (OpenClaw strategy).
 
 ---
 
-## Usage
+## LLM Support
 
-### CLI Commands
-
-```
-selfer [OPTIONS] COMMAND [ARGS]...
-
-  Selfer - Intelligent Local-First Developer Agent.
-
-Commands:
-  init   Initialize Selfer in the current repository.
-  start  Wake up Selfer and begin the session loops.
-  mode   Set the system persona mode.
-```
-
-#### `selfer init`
-
-Run once inside any Git repository to bootstrap the `.selfer/` workspace:
-
-```bash
-cd /path/to/your/project
-selfer init
-```
-
-This creates:
-```
-.selfer/
-├── config.json    # user preferences and LLM settings
-├── session.json   # persisted plan and step state
-├── memory.db      # SQLite database for chat history
-├── map.json       # JSON tree snapshot of the repository
-└── logs/
-    └── audit.log  # detailed operation log
-```
-
-#### `selfer start`
-
-Wake Selfer up and start the interactive session:
-
-```bash
-selfer start
-# or with a custom bot name
-selfer start --bot-name "HAL"
-```
-
-The Telegram listener is started in the background. The CLI enters the main interaction loop where you can type objectives.
-
-#### `selfer mode`
-
-Adjust the active persona without restarting the session:
-
-```bash
-selfer mode --bot-name "Selfer" --user-name "Master"
-```
-
-### Example Workflow
-
-```bash
-# 1. Navigate to your project
-cd ~/projects/my-app
-
-# 2. Initialize Selfer
-selfer init
-
-# 3. Start the agent
-selfer start
-
-# 4. Give Selfer an objective (CLI or Telegram)
-> Add a /health endpoint to the FastAPI app and write a pytest for it.
-
-# Selfer will:
-#  • Scan the repository tree
-#  • Build a step-by-step plan
-#  • Create/edit the necessary files
-#  • Run the test suite
-#  • Commit the changes
-```
-
----
-
-## Project Structure
-
-```
-Selfer/
-├── src/
-│   └── selfer/
-│       ├── agents/
-│       │   ├── file_creator.py   # Safe file creation with path validation
-│       │   ├── file_editor.py    # Surgical file editing
-│       │   ├── git_agent.py      # Git operations wrapper
-│       │   ├── interrogate.py    # User clarification node
-│       │   ├── planner.py        # Step-array generation agent
-│       │   ├── retriever.py      # Codebase semantic search
-│       │   ├── router.py         # Master supervisor / router node
-│       │   ├── runner.py         # Shell command executor
-│       │   └── summary_agent.py  # History compression agent
-│       ├── cli/
-│       │   └── main.py           # Click CLI entry point
-│       ├── core/
-│       │   ├── directory_mapper.py  # Repository tree scanner
-│       │   ├── graph.py             # LangGraph workflow definition
-│       │   ├── llm.py               # Multi-provider LLM factory
-│       │   ├── logger.py            # Rich logger setup
-│       │   ├── state.py             # SelferState TypedDict
-│       │   ├── system_prompt.py     # Persona system prompts
-│       │   └── telegram.py          # Telegram bot interface
-│       └── memory/
-│           ├── database.py          # SQLAlchemy engine & session helpers
-│           └── models.py            # ORM models for chat history
-├── pyproject.toml
-├── plan.md        # 15-phase implementation roadmap
-└── .selfer/       # Generated per-project workspace (git-ignored)
-```
-
----
-
-## Memory & State
-
-Selfer persists context across sessions in two layers:
-
-| Layer | Location | Purpose |
+| Provider | Default | Config Key |
 |---|---|---|
-| **In-memory graph state** | `SelferState` TypedDict | Active messages, plan array, current step, and free-form variables while the agent is running. |
-| **SQLite database** | `.selfer/memory.db` | Long-term chat history and session summaries managed via SQLAlchemy. |
-| **Session file** | `.selfer/session.json` | Lightweight JSON snapshot of the plan and step counter so a paused session can be resumed. |
-| **Repository map** | `.selfer/map.json` | Latest JSON tree of the project directory, regenerated on `selfer init` and updated between tasks. |
+| Ollama (local) | ✅ Yes | `preferred_model: "llama3"` |
+| OpenAI | Fallback | `OPENAI_API_KEY` |
+| Gemini | Fallback | `GEMINI_API_KEY` |
+| Groq | Fallback | `GROQ_API_KEY` |
+| Claude | Fallback | `ANTHROPIC_API_KEY` |
 
 ---
 
-## Security
+## License
 
-- **Path traversal protection** — the File Creator and Editor agents resolve all paths with `os.path.abspath` and reject any path that escapes the repository root.
-- **Command execution heuristics** — the Runner agent blocks a set of known destructive shell patterns (`rm -rf /`, fork bombs, disk-wiping commands, etc.) before any subprocess is spawned.
-- **Telegram whitelist** — only Telegram usernames listed in `authorized_telegram_users` can send commands. If the list is empty, all users are allowed by default; populate it in production.
-- **No secrets in code** — all API keys are read exclusively from environment variables or `.env` files and are never stored in `.selfer/config.json` or committed to source control.
-
----
-
-## Contributing
-
-Contributions are welcome! The project follows a 15-phase roadmap (see [`plan.md`](plan.md)).
-
-```bash
-# Fork & clone
-git clone https://github.com/<your-fork>/Selfer.git
-cd Selfer
-
-# Install dev dependencies
-uv sync
-
-# Create a feature branch
-git checkout -b feature/my-improvement
-
-# Make changes, then push and open a PR
-git push origin feature/my-improvement
-```
-
-Please keep PRs focused and include a short description of what the change does and why.
+MIT

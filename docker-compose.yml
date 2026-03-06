@@ -1,0 +1,28 @@
+services:
+  selfer:
+    build: .
+    container_name: selfer-agent
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - SELFER_WORKSPACE=/workspace
+    volumes:
+      # Mount your repo as the Selfer workspace
+      - ./:/workspace
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+
+  # Optional: Run Ollama locally for zero-API-cost LLM
+  ollama:
+    image: ollama/ollama:latest
+    container_name: selfer-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+
+volumes:
+  ollama_data:

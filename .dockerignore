@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+*.env
+node_modules/
+.git/
+.selfer/
+*.sqlite
+*.db
+dist/
+build/
+*.egg-info/
+.coverage
+htmlcov/

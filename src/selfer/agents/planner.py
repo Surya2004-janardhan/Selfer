@@ -28,7 +28,7 @@ Repository Environment Context:
 {repo_state}
 """
 
-def planner_node(state: SelferState):
+async def planner_node(state: SelferState):
     """
     The Planner Agent reads the user intent and environment, then outputs a strict JSON step array.
     """
@@ -42,7 +42,7 @@ def planner_node(state: SelferState):
     system_msg = SystemMessage(content=PLANNER_SYSTEM_PROMPT.format(repo_state=repo_state))
     human_msg = HumanMessage(content=user_intent)
 
-    response = llm.invoke([system_msg, human_msg])
+    response = await llm.ainvoke([system_msg, human_msg])
     
     content = response.content.strip()
     if content.startswith("```json"):

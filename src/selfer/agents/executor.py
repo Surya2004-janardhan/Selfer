@@ -26,7 +26,7 @@ If you have successfully completed the step (after seeing tool outputs), respond
 If you need to use tools, call them. Do not ask the user for permission.
 """
 
-def executor_node(state: SelferState):
+async def executor_node(state: SelferState):
     """
     The Executor calls tools to complete the current step of the plan.
     """
@@ -62,7 +62,7 @@ def executor_node(state: SelferState):
     # To keep it safe, we'll build a temporary list for LLM invocation
     invoke_messages = [system_msg] + messages
     
-    response = llm.invoke(invoke_messages)
+    response = await llm.ainvoke(invoke_messages)
     
     logger.info(f"EXECUTOR: LLM responded. Tool calls: {len(response.tool_calls)}")
     

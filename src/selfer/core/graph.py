@@ -34,14 +34,14 @@ def create_selfer_graph() -> StateGraph:
     tool_node = ToolNode(selfer_tools)
     workflow.add_node("tools", tool_node)
     
-    def planner_edge(state: SelferState):
+    async def planner_edge(state: SelferState):
         """ Checks if the Planner array requires execution, or asks user for validation """
         v = state.get("variables", {})
         if v.get("blocked_on_user"):
             return "interrogate"
         return "executor"
         
-    def executor_edge(state: SelferState):
+    async def executor_edge(state: SelferState):
         """ Routes between Executor, Tools, and End """
         messages = state.get("messages", [])
         v = state.get("variables", {})
@@ -100,9 +100,11 @@ def create_selfer_graph() -> StateGraph:
     app = workflow.compile()
     return app
 
-def run_agent(messages: list, repo_state: str = "{}"):
+import asyncio
+
+async def run_agent_async(messages: list, repo_state: str = "{}"):
     """
-    Utility wrapper to run the graph and debug outputs.
+    Utility wrapper to run the graph and debug outputs asynchronously.
     """
     app = create_selfer_graph()
     initial_state = {
@@ -112,7 +114,13 @@ def run_agent(messages: list, repo_state: str = "{}"):
         "repository_state": repo_state,
         "variables": {}
     }
-    logger.info("Starting Graph Execution...")
-    result = app.invoke(initial_state)
-    logger.info("Graph Execution Complete.")
+    logger.info("Starting Async Graph Execution...")
+    result = await app.ainvoke(initial_state)
+    logger.info("Async Graph Execution Complete.")
     return result
+
+def run_agent(messages: list, repo_state: str = "{}"):
+    """
+    Synchronous entry wrapper.
+    """
+    return asyncio.run(run_agent_async(messages, repo_state))

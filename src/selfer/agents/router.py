@@ -15,7 +15,7 @@ except ImportError:
     logger = DummyLogger()
 
 
-def router_node(state: SelferState):
+async def router_node(state: SelferState):
     """
     Router node acts as the Master Supervisor.
     It checks if there's an active plan or if the new message requires execution/planning.
@@ -38,7 +38,7 @@ Return strictly a JSON object: {{"route": "planner"}} or {{"route": "casual"}}
 Latest message: {messages[-1].content}
 """
     
-    response = llm.invoke([HumanMessage(content=prompt)])
+    response = await llm.ainvoke([HumanMessage(content=prompt)])
     try:
         decision = json.loads(response.content).get("route", "casual")
     except Exception:
@@ -58,11 +58,11 @@ def route_edge(state: SelferState) -> Literal["planner", "casual"]:
     variables = state.get("variables", {})
     return variables.get("route_decision", "casual")
 
-def casual_node(state: SelferState):
+async def casual_node(state: SelferState):
     """
     Handles casual non-actionable conversation natively.
     """
     logger.info("CASUAL: Generating conversational reply.")
     llm = LLMFactory.create_llm()
-    response = llm.invoke(state.get("messages", []))
+    response = await llm.ainvoke(state.get("messages", []))
     return {"messages": [response]}

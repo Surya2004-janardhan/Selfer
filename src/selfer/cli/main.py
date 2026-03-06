@@ -40,28 +40,47 @@ BANNER = """
 
 
 # ─── CLI Group ────────────────────────────────────────────────────────────────
-@click.group()
+@click.group(invoke_without_command=True)
 @click.version_option(version="0.1.0", prog_name="Selfer")
-def cli():
+@click.pass_context
+def cli(ctx):
     """Selfer — Local-First Autonomous Developer Agent."""
-    pass
+    root_dir = os.getcwd()
+    selfer_dir = os.path.join(root_dir, ".selfer")
+
+    # Auto-init: if .selfer/ doesn't exist and user didn't explicitly call init,
+    # silently create the workspace so every selfer command just works.
+    if not os.path.exists(selfer_dir) and ctx.invoked_subcommand != "init":
+        console.print(BANNER)
+        console.print(Panel(
+            "[warning]No Selfer workspace found. Initializing automatically...[/warning]",
+            border_style="yellow",
+        ))
+        ctx.invoke(init_cmd)
+        console.print()
+
+    # If no subcommand given, show help
+    if ctx.invoked_subcommand is None:
+        console.print(BANNER)
+        console.print(ctx.get_help())
 
 
 # ─── init ─────────────────────────────────────────────────────────────────────
-@cli.command()
-def init():
+@cli.command("init")
+def init_cmd():
     """Initialize Selfer in the current repository."""
     from selfer.memory.database import init_db
-    from selfer.memory.memory_search import index_repository
     from selfer.core.directory_mapper import DirectoryMapper
 
     root_dir = os.getcwd()
     selfer_dir = os.path.join(root_dir, ".selfer")
-
-    console.print(BANNER)
+    config_path = os.path.join(selfer_dir, "config.json")
 
     if os.path.exists(selfer_dir):
-        console.print("[warning]Workspace already initialized.[/warning]")
+        console.print(Panel(
+            f"[warning]Already initialized.[/warning]\n  Edit config at: [bold cyan]{config_path}[/bold cyan]",
+            border_style="yellow",
+        ))
         return
 
     with Progress(
@@ -72,52 +91,76 @@ def init():
         console=console,
         transient=True,
     ) as progress:
-        task = progress.add_task("Setting up workspace...", total=5)
+        task = progress.add_task("Creating workspace...", total=4)
 
-        os.makedirs(selfer_dir, exist_ok=True)
         os.makedirs(os.path.join(selfer_dir, "logs"), exist_ok=True)
+        os.makedirs(os.path.join(selfer_dir, "sessions"), exist_ok=True)
         progress.advance(task)
 
+        # ── User-editable config with clear descriptions ──────────────
         config = {
+            "_comment": "Edit this file to configure Selfer. All fields are optional.",
             "bot_name": "Selfer",
             "user_name": "Master",
-            "preferred_model": "llama3",
-            "fallback_model": "gpt-4o",
-            "ignore_patterns": [".env", ".git", "node_modules", ".venv", "__pycache__"],
-            "authorized_telegram_users": [],
+
+            "llm": {
+                "_comment": "LLM provider config. Set 'provider' to: ollama | openai | gemini | groq | claude",
+                "provider": "ollama",
+                "model": "llama3",
+                "ollama_url": "http://localhost:11434",
+                "openai_api_key": "",
+                "gemini_api_key": "",
+                "groq_api_key": "",
+                "anthropic_api_key": "",
+                "max_tokens": 64000,
+                "temperature": 0.2
+            },
+
+            "telegram": {
+                "_comment": "Set bot_token from @BotFather. Add your Telegram username to authorized_users.",
+                "enabled": False,
+                "bot_token": "",
+                "authorized_users": []
+            },
+
+            "memory": {
+                "chunk_tokens": 400,
+                "chunk_overlap": 80,
+                "max_results": 6,
+                "chroma_collection": "selfer_memory"
+            },
+
+            "security": {
+                "command_timeout_seconds": 60,
+                "max_retries": 3
+            },
+
+            "ignore_patterns": [".env", ".git", "node_modules", ".venv", "__pycache__", ".selfer"]
         }
-        with open(os.path.join(selfer_dir, "config.json"), "w") as f:
+
+        with open(config_path, "w") as f:
             json.dump(config, f, indent=4)
         progress.advance(task)
 
-        session = {"current_plan": [], "current_step": 0, "is_active": False, "history": []}
         with open(os.path.join(selfer_dir, "session.json"), "w") as f:
-            json.dump(session, f, indent=4)
+            json.dump({"current_plan": [], "current_step": 0, "history": []}, f, indent=4)
         progress.advance(task)
 
         init_db(root_dir)
         progress.advance(task)
 
-        mapper = DirectoryMapper(root_dir)
-        mapper.save_map()
-        progress.advance(task)
-
     console.print(Panel(
-        f"[success]✔ Selfer workspace initialized at[/success] [bold cyan]{selfer_dir}[/bold cyan]",
-        title="[title] Selfer Init [/title]",
+        f"[success]✔ Selfer workspace ready![/success]\n\n"
+        f"  Edit your config: [bold cyan]{config_path}[/bold cyan]\n\n"
+        f"  [dim]→ Set your LLM provider (ollama by default)[/dim]\n"
+        f"  [dim]→ Add Telegram bot token if you want Telegram support[/dim]\n"
+        f"  [dim]→ Add API keys for OpenAI/Gemini/Groq/Claude if not using Ollama[/dim]\n\n"
+        f"  Then run: [bold green]selfer start[/bold green]",
+        title="[title] Selfer Initialized [/title]",
         border_style="bright_cyan",
+        padding=(1, 2),
     ))
 
-    # Non-blocking background index
-    console.print("[dim]Indexing repository into ChromaDB in background...[/dim]")
-    asyncio.run(_background_index(root_dir))
-
-
-async def _background_index(root_dir: str):
-    from selfer.memory.memory_search import index_repository
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, index_repository, root_dir)
-    console.print("[success]✔ ChromaDB index complete.[/success]")
 
 
 # ─── start ────────────────────────────────────────────────────────────────────

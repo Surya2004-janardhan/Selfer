@@ -1,4 +1,1 @@
-agents
-cli
-core
-memory
+selfer

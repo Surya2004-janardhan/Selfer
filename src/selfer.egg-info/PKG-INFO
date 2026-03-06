@@ -2,7 +2,13 @@ Metadata-Version: 2.4
 Name: selfer
 Version: 0.1.0
 Summary: Selfer — Local-First Autonomous Developer Agent
+Keywords: ai,agent,llm,developer-tools,langgraph
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
 Requires-Python: >=3.11
+Description-Content-Type: text/markdown
 Requires-Dist: click>=8.1.8
 Requires-Dist: chromadb>=0.4.24
 Requires-Dist: langchain-chroma>=0.1.0
@@ -20,3 +26,182 @@ Requires-Dist: rich>=13.9.4
 Requires-Dist: setuptools>=75.8.0
 Requires-Dist: sqlalchemy>=2.0.38
 Requires-Dist: sentence-transformers>=5.2.3
+
+# Selfer
+
+**Local-First Autonomous Developer Agent** — a multi-agent AI system that lives in your repository, understands your codebase, and executes complex coding tasks through natural language.
+
+```
+ ██████╗███████╗██╗     ███████╗███████╗██████╗ 
+██╔════╝██╔════╝██║     ██╔════╝██╔════╝██╔══██╗
+╚█████╗ █████╗  ██║     █████╗  █████╗  ██████╔╝
+ ╚═══██╗██╔══╝  ██║     ██╔══╝  ██╔══╝  ██╔══██╗
+██████╔╝███████╗███████╗██║     ███████╗██║  ██║
+╚═════╝ ╚══════╝╚══════╝╚═╝     ╚══════╝╚═╝  ╚═╝
+```
+
+---
+
+## Features
+
+- **Multi-Agent LangGraph** — Router → Planner → Executor loop with bounded tool calls
+- **Local ChromaDB Vector Memory** — 400-token chunks, 80-token overlap, 6 max results (OpenClaw parity)
+- **Async Event Queue** — Node.js-style concurrent task execution without blocking I/O
+- **Per-Agent Venv-Aware Terminals** — Each sub-agent spawns isolated processes in the correct Python environment
+- **Dual-Stack Logging** — Fresh per-query Rich CLI logger + silent global audit trail in `.selfer/logs/audit.log`
+- **Two-Tier Session Memory** — Per-query `QuerySession` + global `RepoSession` with atomic disk flushes
+- **Token-Efficient Routing** — Shared context prefix injected into every LLM call; no full repo tree re-sent
+- **LLM Retry with Backoff** — Exponential backoff on transient failures, smart skip on auth/quota errors
+- **Telegram Bot** — Full async bot with `/start`, `/status`, `/queue`, `/stop`, `/task`, `/agents` commands and live progress edits
+- **Graceful Shutdown** — SIGTERM/SIGINT handlers flush all sessions before exit
+
+---
+
+## Quick Start
+
+### Prerequisites
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/) (`pip install uv`)
+- Ollama (optional, for local LLM)
+
+### Install
+
+```bash
+git clone <your-repo>
+cd your-project
+uv sync
+```
+
+### Initialize Selfer in your repo
+
+```bash
+selfer init
+```
+
+This creates `.selfer/` with `config.json`, `memory.db`, `chroma_db/`, session storage, and a log directory.
+
+### Configure
+
+Edit `.selfer/config.json`:
+
+```json
+{
+  "bot_name": "Selfer",
+  "preferred_model": "llama3",
+  "fallback_model": "gpt-4o",
+  "authorized_telegram_users": ["your_telegram_username"]
+}
+```
+
+Set API keys in `.env`:
+
+```env
+TELEGRAM_BOT_TOKEN=your_token
+OPENAI_API_KEY=sk-...
+GEMINI_API_KEY=...
+GROQ_API_KEY=...
+ANTHROPIC_API_KEY=...
+```
+
+### Start
+
+```bash
+selfer start
+```
+
+Or without Telegram:
+
+```bash
+selfer start --no-telegram
+```
+
+---
+
+## CLI Commands
+
+| Command | Description |
+|---|---|
+| `selfer init` | Initialize workspace + index repo into ChromaDB |
+| `selfer start` | Start agent, event queue, and Telegram bot |
+| `selfer start --no-telegram` | Start CLI-only mode |
+| `selfer status` | Show all queued/running/completed jobs |
+| `selfer queue "<task>"` | Directly enqueue a task |
+| `selfer agents` | List all registered agents |
+| `selfer index` | Re-index repository into ChromaDB |
+| `selfer mode --bot-name X` | Set runtime persona |
+
+---
+
+## Docker Deployment
+
+```bash
+# Build and run with docker-compose
+cp .env.example .env   # fill in your keys
+docker-compose up -d
+
+# Or plain docker
+docker build -t selfer .
+docker run -it --env-file .env -v $(pwd):/workspace selfer
+```
+
+For bundled local Ollama (zero API cost):
+```bash
+docker-compose up -d ollama
+docker-compose exec ollama ollama pull llama3
+docker-compose up selfer
+```
+
+---
+
+## Agent Architecture
+
+```
+User Input (CLI / Telegram)
+        │
+        ▼
+   ┌─────────┐
+   │  Router  │  ← Classifies intent (planner vs casual)
+   └────┬────┘
+        │
+   ┌────▼────────┐
+   │   Planner   │  ← Breaks objective into JSON step array
+   └────┬────────┘
+        │
+   ┌────▼────────┐     ┌──────────────────────────────┐
+   │  Executor   │ ←→  │  Tools                        │
+   └────┬────────┘     │  • file_creator / file_editor │
+        │              │  • retriever (ChromaDB RAG)    │
+        │              │  • runner (venv terminal)      │
+   ┌────▼────────┐     │  • git_agent                   │
+   │ Summarizer  │     └──────────────────────────────┘
+   └─────────────┘
+```
+
+---
+
+## Session Memory
+
+| Layer | Scope | Storage |
+|---|---|---|
+| `QuerySession` | One user request | `.selfer/sessions/<id>.json` |
+| `RepoSession` | Entire workspace lifetime | `.selfer/repo_session.json` |
+
+The `RepoSession` builds a **minimal context prefix** prepended to every LLM call — avoiding retransmission of large repo trees (OpenClaw strategy).
+
+---
+
+## LLM Support
+
+| Provider | Default | Config Key |
+|---|---|---|
+| Ollama (local) | ✅ Yes | `preferred_model: "llama3"` |
+| OpenAI | Fallback | `OPENAI_API_KEY` |
+| Gemini | Fallback | `GEMINI_API_KEY` |
+| Groq | Fallback | `GROQ_API_KEY` |
+| Claude | Fallback | `ANTHROPIC_API_KEY` |
+
+---
+
+## License
+
+MIT

@@ -1,2 +1,2 @@
 [console_scripts]
-selfer = cli.main:cli
+selfer = selfer.cli.main:cli

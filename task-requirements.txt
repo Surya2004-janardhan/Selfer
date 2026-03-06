@@ -1,42 +1,128 @@
+# SELFER - COMPREHENSIVE SYSTEM, ARCHITECTURE, AND REQUIREMENTS DOCUMENT
+
+================================================================================
+INTRODUCTION AND CORE PHILOSOPHY
+================================================================================
+
 Selfer 
 
-selfer is an intellegent (calude code + open claw) like system but that can run on local ollama support or third party service providers,
+Selfer is an intellegent (calude code + open claw) like system but that can run on local ollama support or third party service providers,
 it connects user Telegram bot for thrid part access to the current repo or it can also handle CLI based chat interface.
+
+The foundational design of Selfer revolves around autonomy coupled with strict subservience to the developer.
+It bridges the gap between remote accessibility and extreme locality, recognizing that modern software engineering demands both ultra-secure offline capabilities (via local LLMs like Llama 3 or Mistral) and powerful, elastic cloud-based intelligence (via OpenAI, Anthropic, or similar APIs). By defaulting to a local-first paradigm, Selfer ensures zero data leakage for highly sensitive repositories while maintaining an avenue to execute exceptionally complex reasoning tasks on premium cloud models when manually authorized by the user.
+
+Selfer is full aware of its surroundings whts its master 
+
+Selfer is like a BAT 
+
+people who use is its MASTER 
+
+it serves master with ultimate no mistake
+
+Selfer operates with absolute loyalty and deterministic precision. It is built to augment the developer's raw output without hijacking the creative or structural intent of the repository.
+
+Selfer can have modes we can set the way selfer talks with the mode selfer has by deafult has name selfer and user has master these can be changed with the cli using certain commands.
+This modular persona engine is critical. Not all users want a highly verbose assistant. Modes control verbiage, conciseness, proactive execution levels, and the personality traits displayed in CLI printouts or Telegram replies. The identity of "Selfer" and "Master" reflects its default subservient protocol, easily adjusted via `selfer mode --set <bot_name> <user_name>`.
+
+================================================================================
+DEPLOYMENT, ACCESSIBILITY, AND SESSION MANAGEMENT
+================================================================================
 
 Selfer is global installed package vai pip install selfer where several commands are prebuilt to use in the CLI once selfer is installed 
 and connected to a directory it has access to that directory completely you can give commands vai CLI or chat at CLI within the system 
 or can send messages from your Telegram bot that you have connected earlier.
 
+The global installation standardizes the toolset across the entire operating system. You do not install Selfer per project; you install it once system-wide.
+When invoked within a directory, it temporarily binds itself to that environment, dynamically scanning and reading the context of the exact working directory.
+The CLI is built using 'click' and 'rich', allowing an extremely aesthetic, readable, color-coded interface that supports streaming responses, markdown rendering directly in the terminal, and interactive prompts (like yes/no confirmations for dangerous file operations).
+
 Once the session gets start selfer holds only repo/directory memory it doesnt hold any global memory, selfer checks its previous sessions if previous session is there
 it goes directory to there continues your chat if not there is creates a directory memory where it comes to know all the things present in the
 directory/repo
 
+This repository-scoped memory architecture is deeply important. Cross-contamination of context is one of the most significant failure points in multi-project AI agents. By strictly isolating vector stores and JSON states per-directory, Selfer guarantees that it will not accidentally mix React components from Project A when editing a Django backend in Project B. Memory isolation guarantees surgical precision.
+
 Selfer uses init command to start and understant the repo and creates its own .selfer directory that has essentail info needed for the system to handle the workplace
+
+The `.selfer` hidden folder acts exactly like a `.git` folder. It is the brain center for that specific project.
+Inside `.selfer`, the system maintains:
+- `memory.db` (Local SQLite mapping of vector embeddings and conversation history)
+- `session.json` (The absolute state of the routing graph)
+- `config.json` (File ignores, preferred models for this repo, custom instructions)
+- `logs/` (Audited history of execution)
+
+================================================================================
+SYSTEM FEATURES AND EXPANDED CAPABILITIES
+================================================================================
 
 selfer is local first multi agent orchestration where it has buch of agents with its hands with strong system prompts and security checks
 
 Selfer has following features:
-1. CLI based chat interface
-2. Telegram bot integration
-3. Multi agent orchestration
-4. Security checks
-5. Local first
-6. Multi model support
-7. Memory management
-8. Session management
-9. File system access
-10. Directory/repo access
-11. Command execution
-12. Task management
-13. Progress tracking
-14. Notification system
-15. User authentication
-16. Role based access control
-17. Audit logging
-18. Error handling
-19. Logging
-20. Configuration management
 
+1. CLI based chat interface
+   The CLI acts as the primary communication bridge. It supports multiline inputs, markdown-rendered outputs, code block highlighting, and asynchronous command streaming. Through `rich`, the interactions are formatted exactly like a modern web UI, right inside the terminal.
+
+2. Telegram bot integration
+   A standout feature. By securely associating your Telegram Account ID with the global installation, you can text the bot from your phone: `Please write a test case for user_auth.py and commit it.` Selfer receives the payload, executes purely on your local machine, and streams the completion back.
+
+3. Multi agent orchestration
+   A single LLM cannot code reliably. Selfer deploys a swarm. Different prompts, different system contexts, and even different model weights govern Planner, Coder, and Reviewer agents.
+
+4. Security checks
+   OS-level sandboxing. Before arbitrary `cmd runnable agent` executes `rm -rf` or modifies configuration payloads, a heuristic security parser (and potentially a small local model reviewer) halts execution and forces user validation.
+
+5. Local first
+   By defaulting to Ollama APIs (`localhost:11434`), it requires no network outbounds. This local-first logic includes local embedding models (e.g., `nomic-embed-text`) preventing source-code exfiltration to OpenAI servers.
+
+6. Multi model support
+   It can switch models dynamically based on task sizes. For example, using local `llama3-8B` for fast code completions and git summaries, while leveraging `claude-3.5-sonnet` for heavy architectural design.
+
+7. Memory management
+   Utilizes short-term memory (recent chat loops) and long-term memory (vector embeddings of past executed plans, tree mappings, and summarized functions).
+
+8. Session management
+   A `selfer resume` command brings the agent exactly back to the exact LangGraph node and chat state it was at yesterday when you closed your laptop.
+
+9. File system access
+   Deep integrated Python `os` and `pathlib` capabilities wrapped around heuristic boundaries restricting the agent from traversing outside the root project map without explicit permission.
+
+10. Directory/repo access
+    Utilizing Tree commands and optimized depth traversals. It creates a `.selfer/map.json` that compresses structural layouts to drastically save context-window tokens when an agent needs to "look" at the project.
+
+11. Command execution
+    Secure shell piping allowing Selfer to run `npm run test`, read the stderr/stdout output, parse failures, iteratively fix the code, and re-run without human intervention.
+
+12. Task management
+    A high-level planner subdivides massive prompts ("Build a React Login Page") into sequential nodes: 1. Setup Component, 2. Add State, 3. Connect API, 4. Style, 5. Write Tests.
+
+13. Progress tracking
+    Real-time logging via CLI progress bars and discrete Telegram message updates keeping the user continuously aware of the autonomous loop.
+
+14. Notification system
+    When autonomous tasks take extended periods (e.g. running an entire test suite or compiling), Selfer passively messages the Telegram bot upon finish/failure to retrieve the user's attention.
+
+15. User authentication
+    Strict whitelist protocol. The Telegram Webhook refuses commands from any ID not hardcoded into the global `.selfer_global/config.json`, preventing hijacking of the local machine from random internet users.
+
+16. Role based access control
+    Agents themselves possess "Roles". A Documentation Agent physically lacks the functional ability (tool access) to execute bash scripts or delete files, minimizing hallucination damage vector.
+
+17. Audit logging
+    Every action, token generated, file manipulated, and command executed is strictly written to `.selfer/logs/audit.log` for debugging and security reviews.
+
+18. Error handling
+    Intelligent looping. If an agent tries to append code and causes a syntax error, the orchestrator intercepts the stack trace, feeds it back to the agent with instructions to self-correct, up to a maximum `retry_limit` mechanism.
+
+19. Logging
+    Detailed developer logging decoupled from user chat output, ensuring the CLI interface remains clean while debug payloads stream to background files.
+
+20. Configuration management
+    Dynamic adjustment arrays where users can dictate global defaults (preferred LLM = local llama3) and local overrides (this specific repo requires Claude 3.5 due to massive complexity).
+
+================================================================================
+TECHNOLOGY STACK: IMPLEMENTATION DIRECTIVES
+================================================================================
 
 selfer tech stack includes :
 pure pythonic appraoch with 
@@ -51,37 +137,176 @@ memory-tree
 memory
 retrival 
 
+1. Pure Pythonic Approach:
+   Python is uniquely situated for OS interfacing, text manipulation, and AI tool chaining. Utilizing Python 3.10+ async/await constructs allows non-blocking execution while waiting on local Ollama inferences or Telegram POST requests natively.
+
+2. LangGraph:
+   This is the backbone of the entire workflow routing architecture. Unlike standard linear LangChain loops, LangGraph defines cyclical, stateful agent ecosystems. The "Orchestrator" node routes data to the "Execution" node, which flows into the "Verification" node, and if verification fails, cycles dynamically back to the "Execution" node.
+
+3. LangChain:
+   Provides the standardized `ChatModel` interface, making it trivial to swap between Ollama and OpenAI API wrappers, and provides the baseline tool-calling constructs used by the agents.
+
+4. Ollama:
+   The ultimate enabler for privacy and offline usage. Ollama bindings map directly to prompt generation, handling local hardware-accelerated LLM loading seamlessly.
+
+5. python-dotenv:
+   Secures tokens (Telegram API keys, optional OpenAI keys) away from the codebase, strictly injecting variables silently at runtime.
+
+6. python-telegram-bot:
+   Powered by extremely efficient asynchronous polling or webhooks, keeping constant watch over the developer's chat inputs and pushing Selfer's status updates cleanly.
+
+7. click & rich:
+   Click builds robust parameter-based terminal executables (`selfer start`, `selfer mode`). Rich formats the outputs mathematically perfect tables, syntax-highlighted code blocks, and markdown renderings inside terminals.
+
+8. Memory-Tree:
+   An abstract data structure representing file dependencies and context hierarchies recursively. Instead of embedding raw files, Selfer maps relationships (e.g., `user.py` depends on `db.py`), allowing intelligent retrieval.
+
+9. Memory:
+   A robust construct that retains local variable states during an entire LangGraph session lifecycle, preventing amnesia during massive autonomous loops.
+
+10. Retrieval:
+    Advanced Retrieval-Augmented Generation (RAG). By chunking project code and indexing semantics via basic local embeddings, large projects are cleanly searched via cosine similarity whenever an agent queries "Where is the authentication logic?".
+
+================================================================================
+MULTI-AGENT ORCHESTRATION & DYNAMIC WORKFLOW ROUTING
+================================================================================
 
 selfer has buch of agents in its hand with root level routing intellegent context maintinence 
 
 when selfer is used with ollama based models it ultilizes models based on the current sub task, all the low level teasks go to small models and big tasks reach LLMS
 
-selfer is full aware of its surroundings whts its master 
+This model-arbitrage system is an immense cost and speed optimization layer. 
+For instance, summarizing what changed in a local file uses `mistral-nemo` or `llama3.1-8b` entirely locally within 1 second. 
+Designing a completely new database architecture or refactoring 15 entangled files reroutes via LangGraph decision node to a high-capability larger local model (`command-r`) or a remote LLM API (`gpt-4o`).
+This is governed by an Agent Router module that acts as the intelligent traffic cop.
 
-selfer is like a BAT 
-
-people who use is its MASTER 
-
-it serves master with ultimate no mistake
-
-selfer can have modes we can set the way selfer talks with the mode selfer has by deafult has name selfer and user has master these can be changed with the cli using certain commands 
-
+--------------------------------------------------------------------------------
+THE AGENT ROSTER (In-depth Role Explanations)
+--------------------------------------------------------------------------------
 
 the main agents of selfer include 
 
+1. git 
+   The Git Agent is strictly responsible for interpreting code logic into readable commits, managing branches, reading diffs effectively to understand state changes, and pushing arrays safely.
+   
+2. summary 
+   The Summarization Agent consumes raw outputs—whether they are massive console logs or entirely new code files—and squashes them into bite-sized context payloads to inject into the Main Router's context window.
 
-git 
-summary 
-directory strucutures
-maps of strucutures or tree view of root 
-plan 
-execution 
-cmd runnable agent
-file or folder createsr
-editor 
-agent router 
-memory
-syetem prompts
-user choices 
-retrvieers 
-llm asker 
+3. directory strucutures
+   A dedicated Agent designed specifically to parse and traverse filesystem structures, ignoring `node_modules` or `.venv` based on configured rules, generating a lightweight blueprint of the active environment.
+
+4. maps of strucutures or tree view of root 
+   A sub-mechanism acting as the cartographer. When invoked, it builds visual mental models (Ascii Trees) which are extremely token-efficient for larger reasoning agents trying to understand repo architecture.
+
+5. plan 
+   The Planner Agent (Deeply analyzed in the next section). The true intellect behind any complex execution. 
+
+6. execution 
+   The "Coder" or "Typist". This agent does not think about the grand design. It follows steps. It creates functions, binds logics, fixes syntax, and invokes formatting scripts. It is purely technical execution.
+
+7. cmd runnable agent
+   The Bash executioner. When a test suite needs to be run (`pytest`), this agent generates the command, requests security authorization, executes the subcommand in the OS, and pipes the generated log outputs back to the network.
+
+8. file or folder createsr
+   The physical builder. Restricted securely to file I/O operations, it performs `mkdir`, `touch`, `write()`, and validation checking.
+
+9. editor 
+   The Surgical Replacement mechanism. Instead of rewriting whole files, this agent uses AST parsing or exact string-matching and regular expressions to overwrite exact snippets, saving enormous compute tokens. 
+
+10. agent router 
+    The Central Supervisor. Every time an agent completes a task, the Router decides next hops. Should it go to Execution again, or back to the Planner, or should it output to the Master user?
+
+11. memory
+    The Archivist Agent. Always running passively in the background. It observes chat cycles, detects highly useful architectural insights dynamically produced during coding, and commits them to `.selfer/memory.db`.
+
+12. syetem prompts
+    A dynamic agent mechanism adjusting the behavior framework. It injects personality modes, rules of subservience, and environment boundaries dynamically based on what `selfer mode` is active.
+
+13. user choices 
+    The Interrogation Agent. When the system faces an ambiguous design decision (e.g. "Should this API return XML or JSON?"), it halts execution and formats a highly clean query requesting Master's decision natively pushing through CLI or Telegram. 
+
+14. retrvieers 
+    The Searchers. RAG executioners. They translate ambiguous intents ("Find the login token logic") into vector searches or regex greps across the codebase, piping raw snippets back to the Planner.
+
+15. llm asker 
+    The External Cloud delegate. When the sub-task complexity is flagged high and local Ollama isn't adequate, this execution branch queries premium remote APIs, retrieving the sophisticated reasoning output seamlessly back into the local graph.
+
+================================================================================
+PLANNER AGENT DEEP DIVE: ARCHITECTURE & MECHANICS
+================================================================================
+
+What exactly is the Planner? 
+The Planner is the strategic apex predator of the LangGraph ecosystem. In autonomous systems, allowing Execution or Code-Editor agents to operate sequentially without a grand design routinely creates circular logic, messy redundant code, and application crashes.
+
+The Planner is triggered immediately after the Master issues a broad command ("Refactor my checkout system to use Stripe"). 
+It receives:
+a) The User Prompt.
+b) The Summarized Directory Tree.
+c) Retrieved Context (Memories on how billing was handled previously).
+
+Instead of outputting code, the Planner synthesizes a JSON array of granular milestones.
+Step 1: Install stripe package via subprocess.
+Step 2: Read `checkout.py` and analyze dependencies.
+Step 3: Edit `checkout.py` to securely accept Stripe keys.
+Step 4: Create unit tests in `test_checkout.py`.
+
+The Planner then hands this rigid structured list to the Agent Router, which begins distributing these individual array indexes sequentially out to Execution Agents.
+If an Execution Agent fails Step 3, the Router halts, gathers the error trace, and kicks the graph back to the Planner. The Planner critically evaluates the failure, rewrites Step 3 and 4 mathematically based on the new reality, and redistributes the tasks.
+This dynamic replanning prevents catastrophic runaway loops that plague naive LangChain deployments.
+
+================================================================================
+ROUTING: "HOW IT GOES" WORKFLOW MECHANICS
+================================================================================
+
+Routing is dictatorial and handled by LangGraph conditional edges.
+The workflow goes strictly as follows:
+
+[Master Input Phase] -> User types in CLI or Telegram.
+[Injection Phase] -> System prompts, repo context, and mode configs map directly onto input.
+[Router Dispatch Phase] -> Is this conversational or operational?
+   -> If conversational: Send to local Small LLM -> Print to user.
+   -> If operational: Trigger Planner module.
+[Planning Phase] -> Generates a robust action tree.
+[Execution Phase Loop]:
+     For each step in Plan:
+         - Dispatch target files to Retrievers.
+         - Send parsed requirements into Execution/Editor Agent.
+         - Execution issues diff updates.
+         - File creator/editor applies to physical hard drive.
+[Verification Phase] -> CMD Runnable triggers linter (e.g., `flake8` or `npm run format`).
+         - Valid: Router moves to next target in Plan.
+         - Invalid: Router extracts stdout trace -> Returns to Planner -> Cycle loops.
+[Completion Phase] -> Summary Agent wraps operations into a final 4-line overview.
+[Notification Phase] -> Ping CLI and Telegram synchronously.
+[Memory Binding Phase] -> Updates the history and context database.
+
+This cyclic network fundamentally allows the agent to iteratively grind through failure just like a real developer reading StackOverflow via Trial and Error algorithms.
+
+================================================================================
+TECHNICAL ANALYSIS AND HOW THIS IS ALL ACHIEVED
+================================================================================
+
+Building Selfer as described strictly relies on state machine theory via LangGraph.
+
+1. State Maintenance: 
+A heavily structured `TypedDict` holds the core Context object throughout the node traversal. This Context object comprises `{messages, current_plan, current_step, repository_state, variables}`. As nodes fire, they solely mutate this global dictionary, eliminating data desync issues.
+
+2. Context Window Management:
+A local model like Llama 3 maxes out quickly on tokens (usually 8k). Selfer achieves context supremacy via aggressive pruning. The Tree maps are compressed to pure hierarchies without file contents. File contents are only pulled into the Context string dynamically when the specific `Execution` node explicitly triggers the `Retriever` to view it. Once edited, the file is dropped from immediate memory to save buffer space. 
+
+3. Telegram Parallelism:
+Achieved via `python-telegram-bot` threading architecture running continuously in the background loop while the `click` application hogs the main terminal thread. Incoming POST webhooks are piped directly into an asynchronous queue that the LangGraph Orchestrator reads from concurrently.
+
+4. Hybrid Model Logic:
+The system wraps multiple LLM backends under a polymorphic interface. A configuration dictionary (`config.json`) creates standard heuristic rules: 
+`IF node == Planner -> USE GPT-4o // IF node == Summary -> USE Ollama/Llama3`
+This allows cost minimization simultaneously ensuring maximal reasoning capacity.
+
+5. Ensuring Absolute Independence and Security:
+Agents are given completely locked-down tool definitions using Pydantic schemas. If a local model hallucinates and provides incorrect parameters to the file editor, Pydantic throws a ValidationError instantly, which Langgraph catches natively and forces the model to re-output without executing malicious intent. 
+The system operates securely on the user's hard drive because its scope mappings use `os.path.abspath(target).startswith(PROJECT_ROOT)` verification gates on every single execution stroke. If an agent hallucinates navigating to `/etc/passwd`, it throws an AccessViolation internally and rejects it.
+
+================================================================================
+CONCLUSION 
+================================================================================
+Selfer bridges the gap between unconstrained remote access and robust local multi-model processing. Utilizing specialized agents, dynamic graph routing, deep contextual memory encapsulation, and absolute devotion to the Master's explicit choices, it evolves from a mere chatbot to an integrated autonomous workforce inhabiting the repository level. This master-bat relationship ensures it serves impeccably with ultimate determinism.

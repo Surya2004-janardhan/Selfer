@@ -6,6 +6,8 @@ from selfer.agents.planner import planner_node
 from selfer.agents.interrogate import user_interrogation_node
 from selfer.agents.executor import executor_node
 from selfer.agents.tools import selfer_tools
+from selfer.core.session import session_manager
+from selfer.core.logger import get_query_logger, teardown_query_logger, audit_logger
 
 try:
     from selfer.core.logger import logger
@@ -104,23 +106,59 @@ import asyncio
 
 async def run_agent_async(messages: list, repo_state: str = "{}"):
     """
-    Utility wrapper to run the graph and debug outputs asynchronously.
+    Primary async graph runner. Creates a fresh QuerySession per call,
+    injects the global RepoSession shared context as a minimal LLM prefix,
+    and flushes both sessions on completion.
     """
+    import os
+    root_dir = os.getcwd()
+
+    # Initialize global session (no-op if already loaded)
+    session_manager.initialize(root_dir)
+
+    # Create a fresh per-query session
+    user_query = messages[-1].content if messages else ""
+    qs = session_manager.new_query_session(user_query)
+    qs.log("graph", f"Starting query session [{qs.session_id}]")
+
+    # Per-query logger for this invocation
+    log = get_query_logger(qs.session_id, "graph")
+    log.info(f"Starting graph execution [{qs.session_id}]")
+    audit_logger.info(f"Graph invocation start — query: {user_query[:80]}")
+
     app = create_selfer_graph()
     initial_state = {
         "messages": messages,
         "current_plan": [],
         "current_step": 0,
         "repository_state": repo_state,
-        "variables": {}
+        "variables": {},
+        "query_session_id": qs.session_id,
+        "shared_context": qs.context_summary,  # Pre-built minimal repo context prefix
+        "agent_name": "graph",
     }
-    logger.info("Starting Async Graph Execution...")
-    result = await app.ainvoke(initial_state)
-    logger.info("Async Graph Execution Complete.")
+
+    try:
+        result = await app.ainvoke(initial_state)
+        qs.finished = True
+        qs.log("graph", "Execution completed successfully.")
+        audit_logger.info(f"Graph completed [{qs.session_id}]")
+    except Exception as e:
+        qs.log("graph", f"Execution failed: {e}")
+        audit_logger.error(f"Graph failed [{qs.session_id}]: {e}")
+        raise
+    finally:
+        # Flush query session to disk
+        qs.flush(session_manager.get_sessions_dir(root_dir))
+        # Flush repo session with updated plan state
+        plan = result.get("current_plan", []) if isinstance(result, dict) else []
+        session_manager.repo.active_plan = plan
+        session_manager.flush_repo(root_dir)
+        # Tear down the per-query logger to prevent handler leaks
+        teardown_query_logger(qs.session_id, "graph")
+
     return result
 
 def run_agent(messages: list, repo_state: str = "{}"):
-    """
-    Synchronous entry wrapper.
-    """
+    """Synchronous entry wrapper."""
     return asyncio.run(run_agent_async(messages, repo_state))

@@ -1,75 +1,69 @@
 import os
-import subprocess
+import asyncio
 from pydantic import BaseModel, Field
+from selfer.core.terminal import terminal_registry
 
 try:
-    from selfer.core.logger import logger
+    from selfer.core.logger import get_query_logger, audit_logger
 except ImportError:
-    class DummyLogger:
-        def info(self, msg): print(msg)
-        def warning(self, msg): print(msg)
-        def error(self, msg): print(msg)
-    logger = DummyLogger()
+    import logging
+    audit_logger = logging.getLogger("selfer")
+    def get_query_logger(qid, name): return audit_logger
+
+BLOCKED_PATTERNS = [
+    "rm -rf /",
+    "mkfs",
+    "dd if=",
+    "> /dev/sda",
+    ":(){ :|:& };:",
+    "format c:",
+    "deltree",
+]
 
 class CommandInput(BaseModel):
     command: str = Field(description="The shell command to execute in the repository.")
 
-def execute_command(command: str, root_dir: str = None) -> str:
+async def execute_command_async(
+    command: str,
+    root_dir: str = None,
+    query_session_id: str = "global",
+    agent_name: str = "runner",
+) -> str:
     """
-    Executes a shell command. 
-    Implements security heurustics blocking inherently destructive or escaping commands.
+    Production-grade async command executor using AgentTerminal (venv-aware).
+    Logs to both the per-query stack and the global audit trail.
     """
     if root_dir is None:
         root_dir = os.getcwd()
-        
-    logger.info(f"Runner evaluating command: `{command}`")
-    
-    # Security Heuristics
-    risky_patterns = [
-        "rm -rf /", 
-        "mkfs", 
-        "dd if=", 
-        "> /dev/sda", 
-        ":(){ :|:& };:" # Fork bomb
-    ]
-    
-    for pattern in risky_patterns:
-        if pattern in command:
-            logger.warning(f"BLOCKED: Command contains strictly prohibited pattern: {pattern}")
-            return f"Error: Execution blocked due to security heuristic. Pattern matched: {pattern}"
-            
-    # In a full Telegram flow, any 'rm' might prompt an approval Ask hook to the User, 
-    # similar to OpenClaw's execApprovals flow. For MVP logic, we just run safely isolated in CWD.
-    
-    try:
-        result = subprocess.run(
-            command,
-            cwd=root_dir,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=60 # Max execution time limits
-        )
-        
-        stdout = result.stdout.strip()
-        stderr = result.stderr.strip()
-        
-        output = []
-        if stdout:
-            output.append(f"STDOUT:\n{stdout}")
-        if stderr:
-            output.append(f"STDERR:\n{stderr}")
-            
-        if result.returncode == 0:
-            logger.info("Command completed successfully.")
-            return "Command executed successfully.\n" + "\n".join(output)
-        else:
-            logger.warning(f"Command failed with code {result.returncode}.")
-            return f"Command failed with exit code {result.returncode}.\n" + "\n".join(output)
-            
-    except subprocess.TimeoutExpired:
-        logger.error(f"Command '{command}' timed out after 60s.")
-        return "Error: Command execution timed out after 60 seconds."
-    except Exception as e:
-        logger.error(f"Execution error: {e}")
-        return f"Error executing command: {e}"
+
+    log = get_query_logger(query_session_id, agent_name)
+    audit_logger.info(f"[runner] Evaluating command: `{command}`")
+
+    # Security heuristics
+    for pattern in BLOCKED_PATTERNS:
+        if pattern.lower() in command.lower():
+            msg = f"Execution blocked — prohibited pattern: `{pattern}`"
+            log.warning(msg)
+            audit_logger.warning(f"[runner] BLOCKED: {msg}")
+            return f"Error: {msg}"
+
+    terminal = terminal_registry.get(agent_name, root_dir)
+    result = await terminal.run(command, timeout=60)
+
+    output_parts = []
+    if result["stdout"]:
+        output_parts.append(f"STDOUT:\n{result['stdout']}")
+    if result["stderr"]:
+        output_parts.append(f"STDERR:\n{result['stderr']}")
+
+    status = "✔ completed" if result["returncode"] == 0 else f"✘ exit {result['returncode']}"
+    log.info(f"Command {status}")
+    audit_logger.info(f"[runner] command exit={result['returncode']}: {command[:80]}")
+
+    combined = "\n".join(output_parts) if output_parts else "(no output)"
+    return f"Command {status}.\n{combined}"
+
+
+def execute_command(command: str, root_dir: str = None) -> str:
+    """Sync wrapper around the async executor for tool compatibility."""
+    return asyncio.run(execute_command_async(command, root_dir))

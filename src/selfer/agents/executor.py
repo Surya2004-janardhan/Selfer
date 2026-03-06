@@ -4,11 +4,11 @@ from selfer.core.llm import LLMFactory
 from selfer.agents.tools import selfer_tools
 
 try:
-    from selfer.core.logger import logger
+    from selfer.core.logger import get_query_logger, audit_logger
 except ImportError:
-    class DummyLogger:
-        def info(self, msg): print(msg)
-    logger = DummyLogger()
+    import logging
+    audit_logger = logging.getLogger("selfer")
+    def get_query_logger(qid, name): return audit_logger
 
 EXECUTOR_PROMPT = """
 You are the Executor Agent for Selfer.
@@ -29,8 +29,12 @@ If you need to use tools, call them. Do not ask the user for permission.
 async def executor_node(state: SelferState):
     """
     The Executor calls tools to complete the current step of the plan.
+    Publishes minimal logs to query-scoped console, full trace to audit.
     """
-    logger.info("EXECUTOR: Evaluating step execution...")
+    qid = state.get("query_session_id", "global")
+    log = get_query_logger(qid, "executor")
+    audit_logger.info(f"[executor] node entered, session={qid}")
+    log.info("Evaluating step execution...")
     
     current_plan = state.get("current_plan", [])
     current_step_idx = state.get("current_step", 0)
@@ -55,7 +59,12 @@ async def executor_node(state: SelferState):
     
     # However, we need to ensure the system prompt is present.
     # We can inject it dynamically.
-    system_msg = SystemMessage(content=EXECUTOR_PROMPT.format(current_step_desc=step_desc, plan=plan_str))
+    # Inject shared_context as a token-saving prefix (avoids re-sending full repo tree)
+    shared_context = state.get("shared_context", "")
+    context_prefix = f"{shared_context}\n\n" if shared_context else ""
+    system_msg = SystemMessage(content=context_prefix + EXECUTOR_PROMPT.format(
+        current_step_desc=step_desc, plan=plan_str
+    ))
     
     # LangGraph expects us to just invoke the LLM with the messages
     # But we want to prepend the system_msg.

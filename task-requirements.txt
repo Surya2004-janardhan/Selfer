@@ -1,0 +1,87 @@
+Selfer 
+
+selfer is an intellegent (calude code + open claw) like system but that can run on local ollama support or third party service providers,
+it connects user Telegram bot for thrid part access to the current repo or it can also handle CLI based chat interface.
+
+Selfer is global installed package vai pip install selfer where several commands are prebuilt to use in the CLI once selfer is installed 
+and connected to a directory it has access to that directory completely you can give commands vai CLI or chat at CLI within the system 
+or can send messages from your Telegram bot that you have connected earlier.
+
+Once the session gets start selfer holds only repo/directory memory it doesnt hold any global memory, selfer checks its previous sessions if previous session is there
+it goes directory to there continues your chat if not there is creates a directory memory where it comes to know all the things present in the
+directory/repo
+
+Selfer uses init command to start and understant the repo and creates its own .selfer directory that has essentail info needed for the system to handle the workplace
+
+selfer is local first multi agent orchestration where it has buch of agents with its hands with strong system prompts and security checks
+
+Selfer has following features:
+1. CLI based chat interface
+2. Telegram bot integration
+3. Multi agent orchestration
+4. Security checks
+5. Local first
+6. Multi model support
+7. Memory management
+8. Session management
+9. File system access
+10. Directory/repo access
+11. Command execution
+12. Task management
+13. Progress tracking
+14. Notification system
+15. User authentication
+16. Role based access control
+17. Audit logging
+18. Error handling
+19. Logging
+20. Configuration management
+
+
+selfer tech stack includes :
+pure pythonic appraoch with 
+langgraph
+langchain
+ollama
+python-dotenv
+python-telegram-bot
+click
+rich
+memory-tree
+memory
+retrival 
+
+
+selfer has buch of agents in its hand with root level routing intellegent context maintinence 
+
+when selfer is used with ollama based models it ultilizes models based on the current sub task, all the low level teasks go to small models and big tasks reach LLMS
+
+selfer is full aware of its surroundings whts its master 
+
+selfer is like a BAT 
+
+people who use is its MASTER 
+
+it serves master with ultimate no mistake
+
+selfer can have modes we can set the way selfer talks with the mode selfer has by deafult has name selfer and user has master these can be changed with the cli using certain commands 
+
+
+the main agents of selfer include 
+
+
+git 
+summary 
+directory strucutures
+maps of strucutures or tree view of root 
+plan 
+execution 
+cmd runnable agent
+file or folder createsr
+editor 
+agent router 
+memory
+syetem prompts
+user choices 
+retrvieers 
+llm asker 

@@ -1,1 +1,2 @@
 """CLI module for Selfer."""
+

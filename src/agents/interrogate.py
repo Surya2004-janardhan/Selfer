@@ -1,9 +1,9 @@
 import json
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
-from selfer.core.state import SelferState
+from core.state import SelferState
 
 try:
-    from selfer.core.logger import logger
+    from core.logger import logger
 except ImportError:
     class DummyLogger:
         def info(self, msg): print(msg)
@@ -34,3 +34,4 @@ def user_interrogation_node(state: SelferState):
         "messages": [msg],
         "variables": variables
     }
+

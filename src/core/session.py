@@ -161,3 +161,4 @@ class SessionManager:
 
 # Global singleton
 session_manager = SessionManager()
+

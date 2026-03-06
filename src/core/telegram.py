@@ -8,7 +8,7 @@ from telegram.ext import (
 )
 
 try:
-    from selfer.core.logger import logger
+    from core.logger import logger
 except ImportError:
     import logging
     logger = logging.getLogger("selfer")
@@ -86,7 +86,7 @@ class TelegramInterface:
     async def cmd_status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not await self._auth_check(update):
             return
-        from selfer.core.queue import queue_manager
+        from core.queue import queue_manager
         jobs = queue_manager.get_all_jobs()
         if not jobs:
             await update.message.reply_text("📭 No jobs in the event queue.")
@@ -103,7 +103,7 @@ class TelegramInterface:
     async def cmd_stop(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not await self._auth_check(update):
             return
-        from selfer.core.queue import queue_manager
+        from core.queue import queue_manager
         await queue_manager.stop_worker()
         queue_manager.start_worker()
         await update.message.reply_text("🛑 Event queue flushed and worker restarted.")
@@ -142,8 +142,8 @@ class TelegramInterface:
     async def _run_task(self, update: Update, task_desc: str):
         """Enqueues a LangGraph task and updates the Telegram message as progress happens."""
         from langchain_core.messages import HumanMessage
-        from selfer.core.graph import run_agent_async
-        from selfer.core.queue import queue_manager
+        from core.graph import run_agent_async
+        from core.queue import queue_manager
 
         sent = await update.message.reply_text(f"⏳ Queuing task: _{task_desc[:60]}_...", parse_mode="Markdown")
 
@@ -232,3 +232,4 @@ class TelegramInterface:
             await self.app.updater.stop()
             await self.app.stop()
             await self.app.shutdown()
+

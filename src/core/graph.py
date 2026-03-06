@@ -1,16 +1,16 @@
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
-from selfer.core.state import SelferState
-from selfer.agents.router import router_node, route_edge, casual_node
-from selfer.agents.planner import planner_node
-from selfer.agents.interrogate import user_interrogation_node
-from selfer.agents.executor import executor_node
-from selfer.agents.tools import selfer_tools
-from selfer.core.session import session_manager
-from selfer.core.logger import get_query_logger, teardown_query_logger, audit_logger
+from core.state import SelferState
+from agents.router import router_node, route_edge, casual_node
+from agents.planner import planner_node
+from agents.interrogate import user_interrogation_node
+from agents.executor import executor_node
+from agents.tools import selfer_tools
+from core.session import session_manager
+from core.logger import get_query_logger, teardown_query_logger, audit_logger
 
 try:
-    from selfer.core.logger import logger
+    from core.logger import logger
 except ImportError:
     class DummyLogger:
         def info(self, msg): print(msg)
@@ -162,3 +162,4 @@ async def run_agent_async(messages: list, repo_state: str = "{}"):
 def run_agent(messages: list, repo_state: str = "{}"):
     """Synchronous entry wrapper."""
     return asyncio.run(run_agent_async(messages, repo_state))
+

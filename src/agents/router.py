@@ -2,12 +2,12 @@ import json
 from typing import Literal
 
 from langchain_core.messages import SystemMessage, HumanMessage
-from selfer.core.state import SelferState
-from selfer.core.llm import LLMFactory
-from selfer.core.retry import retry_async
+from core.state import SelferState
+from core.llm import LLMFactory
+from core.retry import retry_async
 
 try:
-    from selfer.core.logger import logger
+    from core.logger import logger
 except ImportError:
     class DummyLogger:
         def info(self, msg): print(msg)
@@ -70,3 +70,4 @@ async def casual_node(state: SelferState):
     llm = LLMFactory.create_llm()
     response = await llm.ainvoke(state.get("messages", []))
     return {"messages": [response]}
+

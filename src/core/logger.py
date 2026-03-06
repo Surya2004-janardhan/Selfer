@@ -131,3 +131,4 @@ def teardown_query_logger(query_id: str, agent_name: str = "selfer"):
 # ─── Default logger (used by modules that don't get a fresh per-query logger) ─
 
 logger = get_query_logger("global", "selfer")
+

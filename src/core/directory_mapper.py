@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, Any, List
 
 try:
-    from selfer.core.logger import logger
+    from core.logger import logger
 except ImportError:
     import logging
     logger = logging.getLogger("selfer")
@@ -95,3 +95,4 @@ class DirectoryMapper:
 if __name__ == "__main__":
     mapper = DirectoryMapper(os.getcwd())
     mapper.save_map()
+

@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 try:
-    from selfer.core.logger import logger
+    from core.logger import logger
 except ImportError:
     import logging
     logger = logging.getLogger("selfer")
@@ -41,3 +41,4 @@ def edit_file(file_path: str, target_text: str, replacement_text: str, root_dir:
         
     logger.info(f"Successfully edited file: {target_path}")
     return f"File successfully updated: {target_path}"
+

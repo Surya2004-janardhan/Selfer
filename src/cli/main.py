@@ -12,7 +12,7 @@ from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeEl
 from rich.table import Table
 from rich.theme import Theme
 from rich.align import Align
-from selfer.core.config import load_config, save_config, SelferConfig
+from core.config import load_config, save_config, SelferConfig
 
 # ─── Selfer Theme ─────────────────────────────────────────────────────────────
 selfer_theme = Theme({
@@ -51,9 +51,9 @@ def cli():
 @cli.command()
 def init():
     """Initialize Selfer in the current repository."""
-    from selfer.memory.database import init_db
-    from selfer.memory.memory_search import index_repository
-    from selfer.core.directory_mapper import DirectoryMapper
+    from memory.database import init_db
+    from memory.memory_search import index_repository
+    from core.directory_mapper import DirectoryMapper
 
     root_dir = os.getcwd()
     selfer_dir = os.path.join(root_dir, ".selfer")
@@ -114,7 +114,7 @@ def init():
 
 
 async def _background_index(root_dir: str):
-    from selfer.memory.memory_search import index_repository
+    from memory.memory_search import index_repository
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, index_repository, root_dir)
     console.print("[success]✔ ChromaDB index complete.[/success]")
@@ -126,8 +126,8 @@ async def _background_index(root_dir: str):
 @click.option("--no-telegram", is_flag=True, default=False, help="Disable Telegram polling.")
 def start(bot_name, no_telegram):
     """Start Selfer — activates queue, CLI loop, and Telegram bot."""
-    from selfer.core.queue import queue_manager
-    from selfer.core.telegram import TelegramInterface
+    from core.queue import queue_manager
+    from core.telegram import TelegramInterface
 
     console.print(BANNER)
 
@@ -143,10 +143,10 @@ def start(bot_name, no_telegram):
 
 
 async def _run_start_loop(name: str, no_telegram: bool):
-    from selfer.core.queue import queue_manager
-    from selfer.core.telegram import TelegramInterface
-    from selfer.memory.memory_search import index_repository
-    from selfer.core.session import session_manager
+    from core.queue import queue_manager
+    from core.telegram import TelegramInterface
+    from memory.memory_search import index_repository
+    from core.session import session_manager
 
     root_dir = os.getcwd()
 
@@ -209,8 +209,8 @@ async def _run_start_loop(name: str, no_telegram: bool):
 async def _cli_input_loop(name: str):
     """Async CLI input loop — reads tasks and enqueues them into the event queue."""
     from langchain_core.messages import HumanMessage
-    from selfer.core.graph import run_agent_async
-    from selfer.core.queue import queue_manager
+    from core.graph import run_agent_async
+    from core.queue import queue_manager
 
     console.print("[dim]Type your instruction (or 'exit' to quit):[/dim]")
     loop = asyncio.get_event_loop()
@@ -255,7 +255,7 @@ async def _cli_input_loop(name: str):
 @cli.command()
 def status():
     """Show status of all queued and running jobs."""
-    from selfer.core.queue import queue_manager
+    from core.queue import queue_manager
 
     jobs = queue_manager.get_all_jobs()
     if not jobs:
@@ -286,8 +286,8 @@ def status():
 def enqueue(task_description):
     """Directly enqueue a task by description."""
     from langchain_core.messages import HumanMessage
-    from selfer.core.graph import run_agent_async
-    from selfer.core.queue import queue_manager
+    from core.graph import run_agent_async
+    from core.queue import queue_manager
 
     job_id = queue_manager.enqueue(
         description=task_description,
@@ -339,7 +339,7 @@ def agents():
 @cli.command()
 def index():
     """Re-index the repository into the ChromaDB vector store."""
-    from selfer.memory.memory_search import index_repository
+    from memory.memory_search import index_repository
 
     root_dir = os.getcwd()
     console.print("[info]Starting ChromaDB repository re-index...[/info]")
@@ -373,3 +373,4 @@ def _save_config(cfg: dict):
 
 if __name__ == "__main__":
     cli()
+

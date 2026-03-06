@@ -1,11 +1,11 @@
 import os
 from langchain_core.tools import tool
 
-from selfer.agents.file_creator import create_file
-from selfer.agents.file_editor import edit_file
-from selfer.agents.retriever import search_codebase
-from selfer.agents.runner import execute_command
-from selfer.agents.git_agent import handle_git
+from agents.file_creator import create_file
+from agents.file_editor import edit_file
+from agents.retriever import search_codebase
+from agents.runner import execute_command
+from agents.git_agent import handle_git
 
 @tool
 def tool_create_file(file_path: str, content: str) -> str:
@@ -71,3 +71,4 @@ selfer_tools = [
     tool_execute_command,
     tool_handle_git
 ]
+

@@ -19,7 +19,7 @@ import sys
 from typing import Optional, AsyncGenerator
 
 try:
-    from selfer.core.logger import audit_logger as logger
+    from core.logger import audit_logger as logger
 except Exception:
     import logging
     logger = logging.getLogger("selfer.terminal")
@@ -202,3 +202,4 @@ class TerminalRegistry:
 
 
 terminal_registry = TerminalRegistry()
+

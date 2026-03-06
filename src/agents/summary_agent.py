@@ -1,10 +1,10 @@
 from langchain_core.messages import SystemMessage, HumanMessage
-from selfer.core.llm import LLMFactory
-from selfer.core.state import SelferState
-from selfer.memory.compaction import extract_safe_context
+from core.llm import LLMFactory
+from core.state import SelferState
+from memory.compaction import extract_safe_context
 
 try:
-    from selfer.core.logger import logger
+    from core.logger import logger
 except ImportError:
     import logging
     logger = logging.getLogger("selfer")
@@ -58,3 +58,4 @@ def summarize_context(state: SelferState) -> dict:
     
     # We overwrite the LangGraph list
     return {"messages": new_messages}
+

@@ -1,11 +1,11 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "selfer"
 version = "0.1.0"
-description = "Selfer Project"
+description = "Selfer — Local-First Autonomous Developer Agent"
 requires-python = ">=3.11"
 dependencies = [
     "click>=8.1.8",
@@ -28,4 +28,10 @@ dependencies = [
 ]
 
 [project.scripts]
-selfer = "selfer.cli.main:cli"
+selfer = "cli.main:cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"

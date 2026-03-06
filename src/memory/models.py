@@ -24,3 +24,4 @@ class VectorMemory(Base):
     # Storing simplified vector as JSON or separate table pending DB array support.
     embedding_json = Column(Text, nullable=True) 
     last_updated = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+

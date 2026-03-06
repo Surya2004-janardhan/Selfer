@@ -8,7 +8,7 @@ from langchain_groq import ChatGroq
 from langchain_anthropic import ChatAnthropic
 
 try:
-    from selfer.core.logger import logger
+    from core.logger import logger
 except ImportError:
     class DummyLogger:
         def info(self, msg): print(msg)
@@ -108,3 +108,4 @@ class LLMFactory:
         else:
             logger.warning(f"Unknown provider '{provider}', defaulting to Ollama.")
             return cls.create_llm("ollama", "llama3")
+

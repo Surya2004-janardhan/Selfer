@@ -3,7 +3,7 @@ from typing import List, Dict, Any
 from langchain_core.messages import BaseMessage, SystemMessage
 
 try:
-    from selfer.core.logger import logger
+    from core.logger import logger
 except ImportError:
     import logging
     logger = logging.getLogger("selfer")
@@ -87,3 +87,4 @@ def extract_safe_context(messages: List[BaseMessage], max_context_share_tokens: 
         "messages": kept,
         "dropped": dropped  # Pass to summarize_with_fallback if desired
     }
+

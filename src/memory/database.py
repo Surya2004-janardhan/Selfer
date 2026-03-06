@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 logger = None  # Intentionally avoiding circular imports early
 try:
-    from selfer.core.logger import logger
+    from core.logger import logger
 except ImportError:
     pass
 
@@ -25,3 +25,4 @@ def init_db(workspace_dir: str):
 def get_session(engine):
     Session = sessionmaker(bind=engine)
     return Session()
+

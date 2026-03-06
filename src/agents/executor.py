@@ -1,10 +1,10 @@
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
-from selfer.core.state import SelferState
-from selfer.core.llm import LLMFactory
-from selfer.agents.tools import selfer_tools
+from core.state import SelferState
+from core.llm import LLMFactory
+from agents.tools import selfer_tools
 
 try:
-    from selfer.core.logger import get_query_logger, audit_logger
+    from core.logger import get_query_logger, audit_logger
 except ImportError:
     import logging
     audit_logger = logging.getLogger("selfer")
@@ -84,3 +84,4 @@ async def executor_node(state: SelferState):
         }
         
     return {"messages": [response]}
+

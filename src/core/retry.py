@@ -15,7 +15,7 @@ from typing import Callable, Awaitable, TypeVar, Type
 T = TypeVar("T")
 
 try:
-    from selfer.core.logger import audit_logger as logger
+    from core.logger import audit_logger as logger
 except Exception:
     logger = logging.getLogger("selfer.retry")
 
@@ -81,3 +81,4 @@ async def retry_async(
 
     logger.error(f"[{label}] All {attempts} attempts exhausted.")
     raise last_exc
+

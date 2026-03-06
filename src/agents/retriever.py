@@ -4,12 +4,12 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 try:
-    from selfer.core.logger import logger
+    from core.logger import logger
 except ImportError:
     import logging
     logger = logging.getLogger("selfer")
     
-from selfer.memory.memory_search import query_memory
+from memory.memory_search import query_memory
 
 class RetrieverInput(BaseModel):
     query: str = Field(description="The search string, regex, or semantic query to look for in the codebase.")
@@ -69,3 +69,4 @@ def search_codebase(query: str, root_dir: Optional[str] = None) -> str:
     except Exception as e:
         logger.error(f"Retriever failed processing query: {e}")
         return f"Retrieval failed: {e}"
+

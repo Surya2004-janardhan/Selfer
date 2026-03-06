@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 try:
-    from selfer.core.logger import logger
+    from core.logger import logger
 except ImportError:
     import logging
     logger = logging.getLogger("selfer")
@@ -31,3 +31,4 @@ def create_file(file_path: str, content: str, root_dir: Optional[str] = None) ->
         
     logger.info(f"Successfully created file: {target_path}")
     return f"File successfully written to {target_path}"
+

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from selfer.agents.runner import execute_command
+from agents.runner import execute_command
 from typing import Optional
 
 class GitInput(BaseModel):
@@ -25,3 +25,4 @@ def handle_git(action: str, message: str = None, branch_name: str = None) -> str
         return execute_command(f"git checkout -b {branch_name}")
     else:
         return f"Error: Unknown git action: {action}"
+

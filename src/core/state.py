@@ -15,3 +15,4 @@ class SelferState(TypedDict):
     query_session_id: str     # Unique ID for per-query logger + session flush
     shared_context: str       # Minimal context prefix from RepoSession (token-efficient)
     agent_name: Optional[str] # Name of the currently active agent for per-agent logger
+

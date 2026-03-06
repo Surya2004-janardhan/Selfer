@@ -3,7 +3,7 @@ from langchain_chroma import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
 try:
-    from selfer.core.logger import logger
+    from core.logger import logger
 except ImportError:
     class DummyLogger:
         def info(self, msg): print(msg)
@@ -131,3 +131,4 @@ def query_memory(query_text: str, root_dir: str, max_results=DEFAULT_MAX_RESULTS
         })
         
     return formatted_results
+

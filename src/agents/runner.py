@@ -1,10 +1,10 @@
 import os
 import asyncio
 from pydantic import BaseModel, Field
-from selfer.core.terminal import terminal_registry
+from core.terminal import terminal_registry
 
 try:
-    from selfer.core.logger import get_query_logger, audit_logger
+    from core.logger import get_query_logger, audit_logger
 except ImportError:
     import logging
     audit_logger = logging.getLogger("selfer")
@@ -67,3 +67,4 @@ async def execute_command_async(
 def execute_command(command: str, root_dir: str = None) -> str:
     """Sync wrapper around the async executor for tool compatibility."""
     return asyncio.run(execute_command_async(command, root_dir))
+

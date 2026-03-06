@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 try:
-    from selfer.core.logger import logger
+    from core.logger import logger
 except ImportError:
     import logging
     logger = logging.getLogger("selfer")
@@ -100,3 +100,4 @@ class SelferEventQueue:
             
 # Global Export
 queue_manager = SelferEventQueue()
+

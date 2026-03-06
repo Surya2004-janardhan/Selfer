@@ -78,3 +78,4 @@ def save_config(cfg: SelferConfig, workspace_root: Optional[str] = None):
     os.makedirs(os.path.dirname(cfg_path), exist_ok=True)
     with open(cfg_path, "w", encoding="utf-8") as f:
         json.dump(cfg.model_dump(), f, indent=4)
+

@@ -1621,7 +1621,7 @@ wheels = [
 [[package]]
 name = "selfer"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "click" },
     { name = "langchain" },
@@ -1636,15 +1636,15 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "click", specifier = ">=8.3.1" },
-    { name = "langchain", specifier = ">=1.2.10" },
-    { name = "langchain-community", specifier = ">=0.4.1" },
-    { name = "langchain-openai", specifier = ">=1.1.10" },
-    { name = "pydantic", specifier = ">=2.12.5" },
-    { name = "python-dotenv", specifier = ">=1.2.2" },
-    { name = "python-telegram-bot", specifier = ">=22.6" },
-    { name = "rich", specifier = ">=14.3.3" },
-    { name = "sqlalchemy", specifier = ">=2.0.48" },
+    { name = "click", specifier = ">=8.1.8" },
+    { name = "langchain", specifier = ">=0.3.19" },
+    { name = "langchain-community", specifier = ">=0.3.18" },
+    { name = "langchain-openai", specifier = ">=0.3.6" },
+    { name = "pydantic", specifier = ">=2.10.6" },
+    { name = "python-dotenv", specifier = ">=1.0.1" },
+    { name = "python-telegram-bot", specifier = ">=21.10" },
+    { name = "rich", specifier = ">=13.9.4" },
+    { name = "sqlalchemy", specifier = ">=2.0.38" },
 ]
 
 [[package]]

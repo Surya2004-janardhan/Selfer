@@ -1,1 +1,8 @@
 openclaw/
+
+.venv/
+__pycache__
+
+
+task-requirements.txt
+plan.md

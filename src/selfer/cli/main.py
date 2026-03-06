@@ -17,6 +17,7 @@ import os
 import json
 from selfer.memory.database import init_db
 from selfer.memory.models import Base # Ensure models are loaded
+from selfer.core.directory_mapper import DirectoryMapper
 
 @cli.command()
 def init():
@@ -54,6 +55,10 @@ def init():
         json.dump(session_defaults, f, indent=4)
         
     init_db(root_dir)
+    
+    # Generate the initial map payload
+    mapper = DirectoryMapper(root_dir)
+    mapper.save_map()
         
     console.print(f"[bold blue]Workspace initialized successfully at {selfer_dir}[/bold blue]")
 

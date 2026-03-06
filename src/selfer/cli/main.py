@@ -1,6 +1,7 @@
 import os
 import json
 import asyncio
+import signal
 import click
 from rich.console import Console
 from rich.panel import Panel
@@ -11,6 +12,7 @@ from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeEl
 from rich.table import Table
 from rich.theme import Theme
 from rich.align import Align
+from selfer.core.config import load_config, save_config, SelferConfig
 
 # ─── Selfer Theme ─────────────────────────────────────────────────────────────
 selfer_theme = Theme({
@@ -143,9 +145,43 @@ def start(bot_name, no_telegram):
 async def _run_start_loop(name: str, no_telegram: bool):
     from selfer.core.queue import queue_manager
     from selfer.core.telegram import TelegramInterface
+    from selfer.memory.memory_search import index_repository
+    from selfer.core.session import session_manager
+
+    root_dir = os.getcwd()
+
+    # Validate config at startup — fail fast, not mid-task
+    cfg = load_config(root_dir)
+
+    # Initialize session manager
+    session_manager.initialize(root_dir)
+
+    # Auto-init ChromaDB if repo has been initialized but never indexed
+    chroma_dir = os.path.join(root_dir, ".selfer", "chroma_db")
+    if not os.path.exists(chroma_dir):
+        console.print("[dim]Auto-indexing repository into ChromaDB...[/dim]")
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, index_repository, root_dir)
+        console.print("[success]✔ ChromaDB auto-index complete.[/success]")
 
     queue_manager.start_worker()
     console.print("[info]Event queue worker started.[/info]")
+
+    # ─── Graceful Shutdown Handler ─────────────────────────────────────────────
+    shutdown_event = asyncio.Event()
+
+    def _shutdown_handler():
+        console.print("\n[warning]Signal received — flushing sessions and shutting down...[/warning]")
+        session_manager.flush_repo(root_dir)
+        shutdown_event.set()
+
+    loop = asyncio.get_event_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            loop.add_signal_handler(sig, _shutdown_handler)
+        except (NotImplementedError, RuntimeError):
+            # Windows: signal handlers not supported in event loop
+            pass
 
     tasks = []
     if not no_telegram:
@@ -153,12 +189,21 @@ async def _run_start_loop(name: str, no_telegram: bool):
         tasks.append(asyncio.create_task(tg.start_polling()))
 
     tasks.append(asyncio.create_task(_cli_input_loop(name)))
+    tasks.append(asyncio.create_task(shutdown_event.wait()))
 
     try:
-        await asyncio.gather(*tasks)
-    except (KeyboardInterrupt, asyncio.CancelledError):
-        console.print("\n[warning]Shutting down Selfer...[/warning]")
+        # Stop on first completed task (either CLI exit or shutdown signal)
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for t in pending:
+            t.cancel()
+            try:
+                await t
+            except asyncio.CancelledError:
+                pass
+    finally:
         await queue_manager.stop_worker()
+        session_manager.flush_repo(root_dir)
+        console.print("[success]✔ Selfer shut down cleanly.[/success]")
 
 
 async def _cli_input_loop(name: str):

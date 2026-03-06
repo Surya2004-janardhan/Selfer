@@ -4,6 +4,7 @@ from typing import Literal
 from langchain_core.messages import SystemMessage, HumanMessage
 from selfer.core.state import SelferState
 from selfer.core.llm import LLMFactory
+from selfer.core.retry import retry_async
 
 try:
     from selfer.core.logger import logger
@@ -38,7 +39,10 @@ Return strictly a JSON object: {{"route": "planner"}} or {{"route": "casual"}}
 Latest message: {messages[-1].content}
 """
     
-    response = await llm.ainvoke([HumanMessage(content=prompt)])
+    response = await retry_async(
+        lambda: llm.ainvoke([HumanMessage(content=prompt)]),
+        attempts=3, label="router/ainvoke"
+    )
     try:
         decision = json.loads(response.content).get("route", "casual")
     except Exception:

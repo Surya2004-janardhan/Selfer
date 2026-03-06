@@ -3,6 +3,7 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from selfer.core.state import SelferState
 from selfer.core.llm import LLMFactory
 from selfer.core.directory_mapper import DirectoryMapper
+from selfer.core.retry import retry_async
 
 try:
     from selfer.core.logger import logger
@@ -42,7 +43,10 @@ async def planner_node(state: SelferState):
     system_msg = SystemMessage(content=PLANNER_SYSTEM_PROMPT.format(repo_state=repo_state))
     human_msg = HumanMessage(content=user_intent)
 
-    response = await llm.ainvoke([system_msg, human_msg])
+    response = await retry_async(
+        lambda: llm.ainvoke([system_msg, human_msg]),
+        attempts=3, label="planner/ainvoke"
+    )
     
     content = response.content.strip()
     if content.startswith("```json"):

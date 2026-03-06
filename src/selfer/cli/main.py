@@ -8,16 +8,27 @@ def cli():
     pass
 
 @cli.command()
-def start():
-    """Start the Selfer agent session."""
+@click.option('--bot-name', default="selfer", help="Name of the bot persona.")
+def start(bot_name):
+    """Wake up Selfer and begin the session loops."""
     logger.info("Starting Selfer session...")
-    console.print("[bold green]Selfer is alive and waiting for Master.[/bold green]")
+    console.print(f"[bold green]{bot_name.capitalize()} is alive and waiting for Master.[/bold green]")
+    
+    # Initialize the background Telegram listener
+    try:
+        tg_interface = TelegramInterface()
+        asyncio.run(tg_interface.start_polling())
+    except Exception as e:
+        logger.error(f"Failed to start background Telegram listener: {e}")
+        console.print("[red]Telegram listener could not start. Continuing CLI only mode.[/red]")
 
 import os
 import json
 from selfer.memory.database import init_db
 from selfer.memory.models import Base # Ensure models are loaded
 from selfer.core.directory_mapper import DirectoryMapper
+from selfer.core.telegram import TelegramInterface
+import asyncio
 
 @cli.command()
 def init():

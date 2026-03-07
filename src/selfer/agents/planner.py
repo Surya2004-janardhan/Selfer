@@ -49,10 +49,12 @@ async def planner_node(state: SelferState):
     )
     
     content = response.content.strip()
-    if content.startswith("```json"):
-        content = content[7:-3].strip()
-    elif content.startswith("```"):
-        content = content[3:-3].strip()
+    
+    # Robustly extract JSON array if there's conversational fluff around it
+    import re
+    match = re.search(r"\[.*\]", content, re.DOTALL)
+    if match:
+        content = match.group(0)
         
     try:
         plan_array = json.loads(content)

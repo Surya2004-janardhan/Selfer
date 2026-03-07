@@ -138,6 +138,7 @@ async def run_agent_async(messages: list, repo_state: str = "{}"):
         "agent_name": "graph",
     }
 
+    result = None
     try:
         result = await app.ainvoke(initial_state)
         qs.finished = True

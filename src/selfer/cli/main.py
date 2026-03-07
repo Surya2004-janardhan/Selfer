@@ -407,27 +407,19 @@ async def _chat_loop(name: str):
             )
 
         # Animate while waiting
-        spinner_chars = ["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"]
-        spin_i = 0
-        while True:
-            j = queue_manager.get_job_status(job_id)
-            status = j["status"]
-            if status == "Running":
-                char = spinner_chars[spin_i % len(spinner_chars)]
-                print(
-                    f"\r  {char} {name} is thinking...          ",
-                    end="", flush=True
-                )
-                spin_i += 1
-            elif status == "Completed":
-                print("\r" + " " * 50 + "\r", end="")
-                _render_response(name, j.get("result"))
-                break
-            elif status == "Failed":
-                print("\r" + " " * 50 + "\r", end="")
-                console.print(f"\n  [error]✘ {name} › {j.get('error', 'Unknown error')}[/error]\n")
-                break
-            await asyncio.sleep(0.15)
+        with console.status(f"[bold bright_cyan]{name} is thinking...[/bold bright_cyan]", spinner="dots") as status:
+            while True:
+                j = queue_manager.get_job_status(job_id)
+                j_status = j["status"]
+                if j_status == "Completed":
+                    status.stop()
+                    _render_response(name, j.get("result"))
+                    break
+                elif j_status == "Failed":
+                    status.stop()
+                    console.print(f"\n  [error]✘ {name} › {j.get('error', 'Unknown error')}[/error]\n")
+                    break
+                await asyncio.sleep(0.15)
 
     console.print()
     console.rule("[dim]Chat session ended[/dim]")

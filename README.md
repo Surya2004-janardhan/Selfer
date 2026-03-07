@@ -172,7 +172,3 @@ The `RepoSession` builds a **minimal context prefix** prepended to every LLM cal
 | Claude | Fallback | `ANTHROPIC_API_KEY` |
 
 ---
-
-## License
-
-MIT

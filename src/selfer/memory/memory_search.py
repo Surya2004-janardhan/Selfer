@@ -1,6 +1,6 @@
 import os
 from langchain_chroma import Chroma
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 
 try:
     from selfer.core.logger import logger

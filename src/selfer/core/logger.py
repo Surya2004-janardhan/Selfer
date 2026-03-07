@@ -41,28 +41,41 @@ console = Console(theme=selfer_theme)
 
 # ─── Global Audit Logger ──────────────────────────────────────────────────────
 
-def _build_audit_logger() -> logging.Logger:
-    """Persistent silent audit logger. Writes to .selfer/logs/audit.log."""
-    log_dir = os.path.join(os.getcwd(), ".selfer", "logs")
-    os.makedirs(log_dir, exist_ok=True)
+class _LazyAuditLogger:
+    """
+    Lazy wrapper: defers creating `.selfer/logs/audit.log` until the first
+    actual log call, so importing `logger.py` never touches the filesystem.
+    This fixes the bug where `_build_audit_logger()` at import-time created
+    `.selfer/logs/` before `selfer init` ran, causing init to bail early.
+    """
+    def __init__(self):
+        self._real: logging.Logger | None = None
 
-    audit_logger = logging.getLogger("selfer.audit")
-    if audit_logger.handlers:
-        return audit_logger  # Already configured, singleton-safe
+    def _ensure(self):
+        if self._real is None:
+            log_dir = os.path.join(os.getcwd(), ".selfer", "logs")
+            os.makedirs(log_dir, exist_ok=True)
+            real = logging.getLogger("selfer.audit")
+            if not real.handlers:
+                real.setLevel(logging.DEBUG)
+                fh = logging.FileHandler(
+                    os.path.join(log_dir, "audit.log"), encoding="utf-8"
+                )
+                fh.setFormatter(logging.Formatter(
+                    "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s",
+                    datefmt="%Y-%m-%dT%H:%M:%S"
+                ))
+                real.addHandler(fh)
+                real.propagate = False
+            self._real = real
 
-    audit_logger.setLevel(logging.DEBUG)
-    fh = logging.FileHandler(os.path.join(log_dir, "audit.log"), encoding="utf-8")
-    fh.setLevel(logging.DEBUG)
-    fh.setFormatter(logging.Formatter(
-        "[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s",
-        datefmt="%Y-%m-%dT%H:%M:%S"
-    ))
-    audit_logger.addHandler(fh)
-    audit_logger.propagate = False  # Do NOT bubble to root console handler
-    return audit_logger
+    def info(self, msg, *a, **k):    self._ensure(); self._real.info(msg, *a, **k)
+    def debug(self, msg, *a, **k):   self._ensure(); self._real.debug(msg, *a, **k)
+    def warning(self, msg, *a, **k): self._ensure(); self._real.warning(msg, *a, **k)
+    def error(self, msg, *a, **k):   self._ensure(); self._real.error(msg, *a, **k)
 
-# Singleton global audit logger (all sub-agents write here)
-audit_logger = _build_audit_logger()
+# Singleton global audit logger
+audit_logger = _LazyAuditLogger()
 
 
 # ─── Per-Query Logger Factory ─────────────────────────────────────────────────
@@ -101,17 +114,22 @@ def get_query_logger(query_id: str, agent_name: str = "selfer") -> logging.Logge
     log.addHandler(rich_handler)
     log.propagate = False  # Don't bubble to audit or root
 
-    # Also mirror into the global audit file for permanent record
-    audit_fh = logging.FileHandler(
-        os.path.join(os.getcwd(), ".selfer", "logs", "audit.log"),
-        encoding="utf-8"
-    )
-    audit_fh.setLevel(logging.DEBUG)
-    audit_fh.setFormatter(logging.Formatter(
-        f"[%(asctime)s] [%(levelname)s] [query:{query_id}] [{agent_name}] %(message)s",
-        datefmt="%Y-%m-%dT%H:%M:%S"
-    ))
-    log.addHandler(audit_fh)
+    # Mirror into global audit file — but only if the dir exists/can be created
+    try:
+        log_dir = os.path.join(os.getcwd(), ".selfer", "logs")
+        os.makedirs(log_dir, exist_ok=True)  # Always safe — creates dirs if missing
+        audit_fh = logging.FileHandler(
+            os.path.join(log_dir, "audit.log"),
+            encoding="utf-8"
+        )
+        audit_fh.setLevel(logging.DEBUG)
+        audit_fh.setFormatter(logging.Formatter(
+            f"[%(asctime)s] [%(levelname)s] [query:{query_id}] [{agent_name}] %(message)s",
+            datefmt="%Y-%m-%dT%H:%M:%S"
+        ))
+        log.addHandler(audit_fh)
+    except Exception:
+        pass  # Silently skip file logging if filesystem isn't ready
 
     return log
 

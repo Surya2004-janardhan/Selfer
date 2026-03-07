@@ -48,9 +48,8 @@ def cli(ctx):
     root_dir = os.getcwd()
     selfer_dir = os.path.join(root_dir, ".selfer")
 
-    # Auto-init: if .selfer/ doesn't exist and user didn't explicitly call init,
-    # silently create the workspace so every selfer command just works.
-    if not os.path.exists(selfer_dir) and ctx.invoked_subcommand != "init":
+    # Auto-init: check for config.json (not the dir) — logger may pre-create the dir
+    if not os.path.exists(os.path.join(selfer_dir, "config.json")) and ctx.invoked_subcommand != "init":
         console.print(BANNER)
         console.print(Panel(
             "[warning]No Selfer workspace found. Initializing automatically...[/warning]",
@@ -76,7 +75,8 @@ def init_cmd():
     selfer_dir = os.path.join(root_dir, ".selfer")
     config_path = os.path.join(selfer_dir, "config.json")
 
-    if os.path.exists(selfer_dir):
+    # Check config.json — not the dir (logger may have pre-created .selfer/logs/)
+    if os.path.exists(config_path):
         console.print(Panel(
             f"[warning]Already initialized.[/warning]\n  Edit config at: [bold cyan]{config_path}[/bold cyan]",
             border_style="yellow",
@@ -166,55 +166,78 @@ def init_cmd():
 # ─── start ────────────────────────────────────────────────────────────────────
 @cli.command()
 @click.option("--bot-name", default=None, help="Override bot persona name.")
-@click.option("--no-telegram", is_flag=True, default=False, help="Disable Telegram polling.")
-def start(bot_name, no_telegram):
-    """Start Selfer — activates queue, CLI loop, and Telegram bot."""
-    from selfer.core.queue import queue_manager
-    from selfer.core.telegram import TelegramInterface
-
+def start(bot_name):
+    """Start Selfer — opens interactive chat and optionally connects Telegram."""
     console.print(BANNER)
 
+    root_dir = os.getcwd()
+    selfer_dir = os.path.join(root_dir, ".selfer")
+    config_path = os.path.join(selfer_dir, "config.json")
+
+    # Load raw config dict for mode check
     cfg = _load_config()
     name = bot_name or cfg.get("bot_name", "Selfer")
+    tg_cfg = cfg.get("telegram", {})
 
+    # ─── Mode Picker ───────────────────────────────────────────────────────────
     console.print(Panel(
-        f"[success]⚡ {name} is online and waiting for your command, Master.[/success]",
+        f"[bold bright_cyan]How do you want to run {name}?[/bold bright_cyan]\n\n"
+        "  [bold green][1][/bold green]  Chat only (CLI interactive chat)\n"
+        "  [bold blue][2][/bold blue]  Chat + Telegram (both channels, one shared queue)\n",
+        border_style="bright_cyan",
+        padding=(1, 3),
+    ))
+
+    while True:
+        choice = console.input("[bold cyan]Enter 1 or 2 ›[/bold cyan] ").strip()
+        if choice in ("1", "2"):
+            break
+        console.print("[warning]Please enter 1 or 2.[/warning]")
+
+    use_telegram = (choice == "2")
+
+    if use_telegram:
+        token = tg_cfg.get("bot_token", "")
+        if not token:
+            console.print(Panel(
+                "[warning]Telegram bot token not set.[/warning]\n"
+                f"Add it to: [bold cyan]{config_path}[/bold cyan]\n\n"
+                '  [dim]"telegram": { "bot_token": "YOUR_TOKEN_HERE" }[/dim]',
+                border_style="yellow",
+            ))
+            use_telegram = False
+        else:
+            console.print(f"[success]✔ Telegram enabled — token found.[/success]")
+
+    console.print()
+    console.print(Panel(
+        f"[success]⚡ {name} is online.[/success]  [dim](Ctrl+C or 'exit' to quit)[/dim]",
         border_style="bright_green",
     ))
 
-    asyncio.run(_run_start_loop(name, no_telegram))
+    asyncio.run(_run_start_loop(name, use_telegram, root_dir))
 
 
-async def _run_start_loop(name: str, no_telegram: bool):
+# ─── Core Run Loop (async) ─────────────────────────────────────────────────────
+async def _run_start_loop(name: str, use_telegram: bool, root_dir: str):
     from selfer.core.queue import queue_manager
-    from selfer.core.telegram import TelegramInterface
-    from selfer.memory.memory_search import index_repository
     from selfer.core.session import session_manager
 
-    root_dir = os.getcwd()
-
-    # Validate config at startup — fail fast, not mid-task
-    cfg = load_config(root_dir)
-
-    # Initialize session manager
     session_manager.initialize(root_dir)
+    queue_manager.start_worker()
 
-    # Auto-init ChromaDB if repo has been initialized but never indexed
+    # ── Auto-index ChromaDB if missing ──────────────────────────────────────
     chroma_dir = os.path.join(root_dir, ".selfer", "chroma_db")
     if not os.path.exists(chroma_dir):
-        console.print("[dim]Auto-indexing repository into ChromaDB...[/dim]")
+        console.print("[dim]First run: indexing repository into ChromaDB... (background)[/dim]")
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, index_repository, root_dir)
-        console.print("[success]✔ ChromaDB auto-index complete.[/success]")
+        asyncio.create_task(loop.run_in_executor(None, _sync_index, root_dir))
 
-    queue_manager.start_worker()
-    console.print("[info]Event queue worker started.[/info]")
-
-    # ─── Graceful Shutdown Handler ─────────────────────────────────────────────
+    # ── Signal Handler ──────────────────────────────────────────────────────
     shutdown_event = asyncio.Event()
 
     def _shutdown_handler():
-        console.print("\n[warning]Signal received — flushing sessions and shutting down...[/warning]")
+        console.print("\n[warning]Shutting down...[/warning]")
         session_manager.flush_repo(root_dir)
         shutdown_event.set()
 
@@ -223,19 +246,21 @@ async def _run_start_loop(name: str, no_telegram: bool):
         try:
             loop.add_signal_handler(sig, _shutdown_handler)
         except (NotImplementedError, RuntimeError):
-            # Windows: signal handlers not supported in event loop
-            pass
+            pass  # Windows: use KeyboardInterrupt fallback instead
 
-    tasks = []
-    if not no_telegram:
+    # ── Launch Tasks ────────────────────────────────────────────────────────
+    tasks = [
+        asyncio.create_task(_chat_loop(name)),
+        asyncio.create_task(shutdown_event.wait()),
+    ]
+
+    if use_telegram:
+        from selfer.core.telegram import TelegramInterface
         tg = TelegramInterface()
         tasks.append(asyncio.create_task(tg.start_polling()))
-
-    tasks.append(asyncio.create_task(_cli_input_loop(name)))
-    tasks.append(asyncio.create_task(shutdown_event.wait()))
+        console.print("[dim]Telegram bot connected and listening.[/dim]")
 
     try:
-        # Stop on first completed task (either CLI exit or shutdown signal)
         done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         for t in pending:
             t.cancel()
@@ -243,55 +268,133 @@ async def _run_start_loop(name: str, no_telegram: bool):
                 await t
             except asyncio.CancelledError:
                 pass
+    except KeyboardInterrupt:
+        _shutdown_handler()
     finally:
         await queue_manager.stop_worker()
         session_manager.flush_repo(root_dir)
         console.print("[success]✔ Selfer shut down cleanly.[/success]")
 
 
-async def _cli_input_loop(name: str):
-    """Async CLI input loop — reads tasks and enqueues them into the event queue."""
+def _sync_index(root_dir: str):
+    from selfer.memory.memory_search import index_repository
+    index_repository(root_dir)
+
+
+# ─── Interactive Chat Loop (Claude Code-style) ─────────────────────────────────
+async def _chat_loop(name: str):
+    """
+    Full interactive async chat loop.
+    - User input is read asynchronously (never blocks the event loop).
+    - Each message is enqueued into the shared queue — same queue Telegram uses.
+    - If the agent is busy, user sees queue position immediately.
+    - When job completes, output is printed to the chat.
+    """
     from langchain_core.messages import HumanMessage
     from selfer.core.graph import run_agent_async
     from selfer.core.queue import queue_manager
 
-    console.print("[dim]Type your instruction (or 'exit' to quit):[/dim]")
     loop = asyncio.get_event_loop()
 
-    while True:
-        user_input = await loop.run_in_executor(None, lambda: input("\n[selfer] > "))
+    # Print chat welcome header
+    console.print()
+    console.rule("[bold cyan]Chat Session Started[/bold cyan]")
+    console.print(
+        f"  [dim]You are talking to[/dim] [bold bright_cyan]{name}[/bold bright_cyan].\n"
+        f"  [dim]Type[/dim] [bold]exit[/bold] [dim]or[/dim] [bold]quit[/bold] [dim]to stop.\n"
+        f"  Any message sent from Telegram will also appear in this queue.[/dim]"
+    )
+    console.print()
 
-        if user_input.strip().lower() in ("exit", "quit"):
+    while True:
+        try:
+            # Read user input without blocking the event loop
+            user_input = await loop.run_in_executor(
+                None, lambda: _read_input()
+            )
+        except (EOFError, KeyboardInterrupt):
             break
 
-        if not user_input.strip():
-            continue
+        if user_input is None:
+            break
 
+        text = user_input.strip()
+        if not text:
+            continue
+        if text.lower() in ("exit", "quit", "/exit", "/quit"):
+            break
+
+        # Show "you" line
+        console.print(f"\n  [bold green]You ›[/bold green] {text}")
+
+        # Enqueue and track
         job_id = queue_manager.enqueue(
-            description=user_input[:60],
-            coro=run_agent_async([HumanMessage(content=user_input)])
+            description=text[:60],
+            coro=run_agent_async([HumanMessage(content=text)])
         )
 
-        with Live(Spinner("dots2", text=f"  [cyan]Job [{job_id}] queued...[/cyan]"), console=console, refresh_per_second=10) as live:
-            while True:
-                status = queue_manager.get_job_status(job_id)
-                if status["status"] == "Running":
-                    live.update(Spinner("dots2", text=f"  [blue]Running [{job_id}]: {status['description']}...[/blue]"))
-                elif status["status"] in ("Completed", "Failed"):
-                    break
-                await asyncio.sleep(0.3)
+        queue_depth = sum(
+            1 for j in queue_manager.get_all_jobs()
+            if j["status"] in ("Pending", "Running")
+        )
+        if queue_depth > 1:
+            console.print(
+                f"  [yellow]⏳ Queued[/yellow] [dim](position {queue_depth} in queue)[/dim]"
+            )
 
-        final = queue_manager.get_job_status(job_id)
-        if final["status"] == "Completed":
-            console.print(Panel(
-                f"[success]✔ Task Completed[/success]",
-                border_style="green",
-            ))
-        else:
-            console.print(Panel(
-                f"[error]✘ Task Failed:[/error] {final['error']}",
-                border_style="red",
-            ))
+        # Animate while waiting
+        spinner_chars = ["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"]
+        spin_i = 0
+        while True:
+            j = queue_manager.get_job_status(job_id)
+            status = j["status"]
+            if status == "Running":
+                char = spinner_chars[spin_i % len(spinner_chars)]
+                print(
+                    f"\r  {char} {name} is thinking...          ",
+                    end="", flush=True
+                )
+                spin_i += 1
+            elif status == "Completed":
+                print("\r" + " " * 50 + "\r", end="")
+                _render_response(name, j.get("result"))
+                break
+            elif status == "Failed":
+                print("\r" + " " * 50 + "\r", end="")
+                console.print(f"\n  [error]✘ {name} › {j.get('error', 'Unknown error')}[/error]\n")
+                break
+            await asyncio.sleep(0.15)
+
+    console.print()
+    console.rule("[dim]Chat session ended[/dim]")
+
+
+def _read_input() -> str | None:
+    """Blocking input read — runs in executor so it doesn't block the event loop."""
+    try:
+        return input("\n  You › ")
+    except (EOFError, KeyboardInterrupt):
+        return None
+
+
+def _render_response(name: str, result: dict | None):
+    """Pretty-print the agent's response to the chat."""
+    if not result:
+        console.print(f"\n  [bold bright_cyan]{name} ›[/bold bright_cyan] (no response)\n")
+        return
+
+    messages = result.get("messages", [])
+    if messages:
+        last = messages[-1]
+        content = getattr(last, "content", str(last))
+        console.print(Panel(
+            content,
+            title=f"[bold bright_cyan]{name}[/bold bright_cyan]",
+            border_style="bright_cyan",
+            padding=(0, 2),
+        ))
+    else:
+        console.print(f"\n  [bold bright_cyan]{name} ›[/bold bright_cyan] Done.\n")
 
 
 # ─── status ───────────────────────────────────────────────────────────────────
@@ -364,16 +467,16 @@ def agents():
     table.add_column("Description", style="white")
 
     agent_list = [
-        ("router", "Master Supervisor — classifies intent and routes to Planner or Casual."),
-        ("planner", "Task Decomposer — breaks down user objectives into ordered step arrays."),
-        ("executor", "Step Runner — executes each plan step using bound LangChain tools."),
-        ("tools", "Tool Dispatcher — file IO, code search, git, and shell execution."),
+        ("router",      "Master Supervisor — classifies intent and routes to Planner or Casual."),
+        ("planner",     "Task Decomposer — breaks down user objectives into ordered step arrays."),
+        ("executor",    "Step Runner — executes each plan step using bound LangChain tools."),
+        ("tools",       "Tool Dispatcher — file IO, code search, git, and shell execution."),
         ("interrogate", "User Blocker — pauses graph to request clarification from the user."),
-        ("summarizer", "Context Compactor — compresses oversized histories into concise summaries."),
-        ("retriever", "RAG Engine — queries the ChromaDB vector index for code context."),
+        ("summarizer",  "Context Compactor — compresses oversized histories into concise summaries."),
+        ("retriever",   "RAG Engine — queries the ChromaDB vector index for code context."),
     ]
-    for name, desc in agent_list:
-        table.add_row(name, desc)
+    for n, desc in agent_list:
+        table.add_row(n, desc)
 
     console.print(table)
 
@@ -398,6 +501,26 @@ def index():
         progress.stop()
 
     console.print("[success]✔ Repository re-indexed successfully.[/success]")
+
+
+# ─── config ───────────────────────────────────────────────────────────────────
+@cli.command("config")
+def show_config():
+    """Show the path to and contents of the active config file."""
+    root_dir = os.getcwd()
+    cfg_path = os.path.join(root_dir, ".selfer", "config.json")
+    if not os.path.exists(cfg_path):
+        console.print("[warning]No config found. Run [bold]selfer init[/bold] first.[/warning]")
+        return
+
+    with open(cfg_path) as f:
+        raw = f.read()
+
+    console.print(Panel(
+        raw,
+        title=f"[bold cyan]{cfg_path}[/bold cyan]",
+        border_style="bright_cyan",
+    ))
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────

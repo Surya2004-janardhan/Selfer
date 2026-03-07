@@ -26,6 +26,7 @@ Requires-Dist: rich>=13.9.4
 Requires-Dist: setuptools>=75.8.0
 Requires-Dist: sqlalchemy>=2.0.38
 Requires-Dist: sentence-transformers>=5.2.3
+Requires-Dist: langchain-huggingface>=0.1.0
 
 # Selfer
 
@@ -201,7 +202,3 @@ The `RepoSession` builds a **minimal context prefix** prepended to every LLM cal
 | Claude | Fallback | `ANTHROPIC_API_KEY` |
 
 ---
-
-## License
-
-MIT

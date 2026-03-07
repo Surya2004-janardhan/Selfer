@@ -1,0 +1,41 @@
+{
+    "_comment": "Edit this file to configure Selfer. All fields are optional.",
+    "bot_name": "Selfer",
+    "user_name": "Master",
+    "llm": {
+        "_comment": "LLM provider config. Set 'provider' to: ollama | openai | gemini | groq | claude",
+        "provider": "ollama",
+        "model": "llama3:8b",
+        "ollama_url": "http://localhost:11434",
+        "openai_api_key": "",
+        "gemini_api_key": "",
+        "groq_api_key": "",
+        "anthropic_api_key": "",
+        "max_tokens": 64000,
+        "temperature": 0.2
+    },
+    "telegram": {
+        "_comment": "Set bot_token from @BotFather. Add your Telegram username to authorized_users.",
+        "enabled": false,
+        "bot_token": "",
+        "authorized_users": []
+    },
+    "memory": {
+        "chunk_tokens": 400,
+        "chunk_overlap": 80,
+        "max_results": 6,
+        "chroma_collection": "selfer_memory"
+    },
+    "security": {
+        "command_timeout_seconds": 60,
+        "max_retries": 3
+    },
+    "ignore_patterns": [
+        ".env",
+        ".git",
+        "node_modules",
+        ".venv",
+        "__pycache__",
+        ".selfer"
+    ]
+}

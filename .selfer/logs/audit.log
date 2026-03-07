@@ -1,0 +1,2 @@
+[2026-03-07T15:23:12] [INFO] [query:global] [selfer] Database initialized successfully at C:\Users\chint\Desktop\selfer\.selfer\memory.db
+[2026-03-07T15:24:44] [INFO] [query:global] [selfer] Initializing Local Ollama model: llama3 at http://localhost:11434

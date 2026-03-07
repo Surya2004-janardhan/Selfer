@@ -174,20 +174,18 @@ def start(bot_name):
     selfer_dir = os.path.join(root_dir, ".selfer")
     config_path = os.path.join(selfer_dir, "config.json")
 
-    # Load raw config dict for mode check
     cfg = _load_config()
     name = bot_name or cfg.get("bot_name", "Selfer")
-    tg_cfg = cfg.get("telegram", {})
+    llm_cfg = cfg.get("llm", {})
+    tg_cfg  = cfg.get("telegram", {})
 
     # ─── Mode Picker ───────────────────────────────────────────────────────────
     console.print(Panel(
         f"[bold bright_cyan]How do you want to run {name}?[/bold bright_cyan]\n\n"
-        "  [bold green][1][/bold green]  Chat only (CLI interactive chat)\n"
-        "  [bold blue][2][/bold blue]  Chat + Telegram (both channels, one shared queue)\n",
-        border_style="bright_cyan",
-        padding=(1, 3),
+        "  [bold green][1][/bold green]  Chat only  (CLI interactive terminal)\n"
+        "  [bold blue][2][/bold blue]  Chat + Telegram  (both channels, one shared queue)\n",
+        border_style="bright_cyan", padding=(1, 3),
     ))
-
     while True:
         choice = console.input("[bold cyan]Enter 1 or 2 ›[/bold cyan] ").strip()
         if choice in ("1", "2"):
@@ -196,26 +194,96 @@ def start(bot_name):
 
     use_telegram = (choice == "2")
 
+    # ─── LLM Pre-flight ────────────────────────────────────────────────────────
+    console.print()
+    with console.status("[bold cyan]Checking LLM connection...[/bold cyan]"):
+        llm_ok, llm_err = _probe_llm(llm_cfg)
+
+    if not llm_ok:
+        provider  = llm_cfg.get("provider", "ollama")
+        model     = llm_cfg.get("model", "llama3")
+        ollama_url = llm_cfg.get("ollama_url", "http://localhost:11434")
+
+        if provider == "ollama":
+            config_hint = (
+                f'"llm": {{\n'
+                f'    "provider": "ollama",\n'
+                f'    "model":    "llama3",        ← or mistral, phi3, etc.\n'
+                f'    "ollama_url": "{ollama_url}"  ← make sure Ollama is running\n'
+                f'}}'
+            )
+            action = "Make sure [bold]Ollama is running[/bold] (`ollama serve`) and the model is pulled (`ollama pull llama3`)."
+        else:
+            key_map = {
+                "openai":    "openai_api_key",
+                "gemini":    "gemini_api_key",
+                "groq":      "groq_api_key",
+                "claude":    "anthropic_api_key",
+                "anthropic": "anthropic_api_key",
+            }
+            key_field = key_map.get(provider, f"{provider}_api_key")
+            config_hint = (
+                f'"llm": {{\n'
+                f'    "provider": "{provider}",\n'
+                f'    "model":    "{model}",\n'
+                f'    "{key_field}": "YOUR_API_KEY_HERE"\n'
+                f'}}'
+            )
+            action = f"Add your [bold]{provider.upper()} API key[/bold] to the config file."
+
+        console.print(Panel(
+            f"[error]✘ Could not connect to LLM.[/error]  ({llm_err})\n\n"
+            f"[bold]Edit:[/bold] [cyan]{config_path}[/cyan]\n\n"
+            f"[dim]{config_hint}[/dim]\n\n"
+            f"{action}\n\n"
+            f"Then run: [bold green]selfer start[/bold green]",
+            title="[bold red] LLM Not Connected [/bold red]",
+            border_style="red", padding=(1, 2),
+        ))
+        raise SystemExit(1)
+
+    console.print(f"[success]✔ LLM connected[/success] [dim]({llm_cfg.get('provider','ollama')} / {llm_cfg.get('model','llama3')})[/dim]")
+
+    # ─── Telegram Pre-flight (mode 2 only) ────────────────────────────────────
     if use_telegram:
-        token = tg_cfg.get("bot_token", "")
+        token = tg_cfg.get("bot_token", "").strip()
         if not token:
             console.print(Panel(
-                "[warning]Telegram bot token not set.[/warning]\n"
-                f"Add it to: [bold cyan]{config_path}[/bold cyan]\n\n"
-                '  [dim]"telegram": { "bot_token": "YOUR_TOKEN_HERE" }[/dim]',
-                border_style="yellow",
+                "[error]✘ Telegram bot token is not set.[/error]\n\n"
+                f"[bold]Edit:[/bold] [cyan]{config_path}[/cyan]\n\n"
+                '[dim]"telegram": {\n'
+                '    "enabled": true,\n'
+                '    "bot_token": "YOUR_BOT_TOKEN",   ← from @BotFather on Telegram\n'
+                '    "authorized_users": ["your_username"]\n'
+                '}[/dim]\n\n'
+                "Then run: [bold green]selfer start[/bold green]",
+                title="[bold red] Telegram Not Configured [/bold red]",
+                border_style="red", padding=(1, 2),
             ))
-            use_telegram = False
-        else:
-            console.print(f"[success]✔ Telegram enabled — token found.[/success]")
+            raise SystemExit(1)
 
+        # Quick token format sanity check
+        if ":" not in token or len(token) < 20:
+            console.print(Panel(
+                "[error]✘ Telegram token looks invalid.[/error]\n"
+                "  It should look like: [dim]110201543:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw[/dim]\n\n"
+                f"Get one from [bold]@BotFather[/bold] on Telegram and add it to:\n[cyan]{config_path}[/cyan]\n\n"
+                "Then run: [bold green]selfer start[/bold green]",
+                border_style="red", padding=(1, 2),
+            ))
+            raise SystemExit(1)
+
+        console.print(f"[success]✔ Telegram token found.[/success] [dim](users: {tg_cfg.get('authorized_users', []) or 'all allowed'})[/dim]")
+
+    # ─── All checks passed → Launch ────────────────────────────────────────────
     console.print()
     console.print(Panel(
-        f"[success]⚡ {name} is online.[/success]  [dim](Ctrl+C or 'exit' to quit)[/dim]",
+        f"[success]⚡ {name} is online.[/success]  [dim]Type 'exit' or Ctrl+C to quit.[/dim]",
         border_style="bright_green",
     ))
 
     asyncio.run(_run_start_loop(name, use_telegram, root_dir))
+
 
 
 # ─── Core Run Loop (async) ─────────────────────────────────────────────────────
@@ -535,6 +603,40 @@ def _save_config(cfg: dict):
     cfg_path = os.path.join(os.getcwd(), ".selfer", "config.json")
     with open(cfg_path, "w") as f:
         json.dump(cfg, f, indent=4)
+
+
+def _probe_llm(llm_cfg: dict) -> tuple[bool, str]:
+    """Test the LLM connection with a tiny payload."""
+    import logging
+    from selfer.core.llm import LLMFactory
+    from langchain_core.messages import HumanMessage
+
+    try:
+        # LLMFactory uses the current config
+        llm = LLMFactory.create_llm(
+            provider=llm_cfg.get("provider"),
+            model_name=llm_cfg.get("model")
+        )
+        # Send a tiny ping
+        audit_log = logging.getLogger("selfer.audit")
+        old_level = audit_log.level
+        audit_log.setLevel(logging.CRITICAL)  # suppress logs for the ping
+
+        response = llm.invoke([HumanMessage(content="Ping? Reply with exactly 'Pong'")])
+
+        audit_log.setLevel(old_level)
+        return True, ""
+    except Exception as e:
+        err = str(e)
+        if "maximum context length" in err.lower():
+            return True, ""  # model exists but we messed up the ping, technically a pass
+        if "authentication" in err.lower() or "api key" in err.lower() or "401" in err:
+            return False, "Invalid API Key"
+        if "connection" in err.lower() or "connrefused" in err.lower() or "target machine actively refused it" in err.lower():
+            return False, "Connection refused (is the server running?)"
+        if "not found" in err.lower() or "404" in err:
+            return False, "Model or endpoint not found"
+        return False, err
 
 
 if __name__ == "__main__":

@@ -38,75 +38,60 @@ class LLMFactory:
     @classmethod
     def create_llm(cls, provider: Optional[str] = None, model_name: Optional[str] = None) -> Any:
         """
-        Instantiates a ChatModel object strictly tied to the requested provider.
-        If no provider is explicitly stated, queries `.selfer/config.json`.
+        Instantiates a ChatModel object. Reads from `.selfer/config.json` `llm` block 
+        first, then falls back to ENV variables.
         """
         config = cls._get_config()
+        llm_cfg = config.get("llm", {})
         
-        if not provider:
-            # Check if config asks for fallback or preferred
-            provider_raw = config.get("preferred_model", "ollama")
-            if provider_raw in ["gpt-4o", "gpt-3.5-turbo"]:
-                provider = "openai"
-                model_name = provider_raw
-            elif "claude" in provider_raw:
-                provider = "anthropic"
-                model_name = provider_raw
-            elif "gemini" in provider_raw:
-                provider = "google"
-                model_name = provider_raw
-            elif "groq" in provider_raw:
-                provider = "groq"
-            else:
-                provider = "ollama"
-                model_name = provider_raw if provider_raw != "ollama" else "llama3"
-
-        provider = provider.lower()
+        provider = (provider or llm_cfg.get("provider") or "ollama").lower()
+        model_name = model_name or llm_cfg.get("model")
+        temperature = llm_cfg.get("temperature", 0.0)
         
         if provider == "ollama":
-            base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+            base_url = llm_cfg.get("ollama_url") or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
             model = model_name or "llama3"
             logger.info(f"Initializing Local Ollama model: {model} at {base_url}")
-            return ChatOllama(model=model, base_url=base_url, temperature=0.0)
+            return ChatOllama(model=model, base_url=base_url, temperature=temperature)
             
         elif provider == "openai":
-            api_key = os.getenv("OPENAI_API_KEY")
+            api_key = llm_cfg.get("openai_api_key") or os.getenv("OPENAI_API_KEY")
             if not api_key:
                 logger.error("OPENAI_API_KEY missing. Falling back to Ollama.")
-                return cls.create_llm("ollama", "llama3")
+                return cls.create_llm("ollama")
             model = model_name or "gpt-4o"
             logger.info(f"Initializing Remote OpenAI model: {model}")
-            return ChatOpenAI(model=model, api_key=api_key, temperature=0.0)
+            return ChatOpenAI(model=model, api_key=api_key, temperature=temperature)
             
-        elif provider == "anthropic":
-            api_key = os.getenv("ANTHROPIC_API_KEY")
+        elif provider in ("anthropic", "claude"):
+            api_key = llm_cfg.get("anthropic_api_key") or os.getenv("ANTHROPIC_API_KEY")
             if not api_key:
                 logger.error("ANTHROPIC_API_KEY missing. Falling back to Ollama.")
-                return cls.create_llm("ollama", "llama3")
+                return cls.create_llm("ollama")
             model = model_name or "claude-3-5-sonnet-20240620"
             logger.info(f"Initializing Remote Anthropic model: {model}")
-            return ChatAnthropic(model=model, api_key=api_key, temperature=0.0)
+            return ChatAnthropic(model=model, api_key=api_key, temperature=temperature)
             
-        elif provider == "google":
-            api_key = os.getenv("GOOGLE_API_KEY")
+        elif provider == "gemini" or provider == "google":
+            api_key = llm_cfg.get("gemini_api_key") or os.getenv("GOOGLE_API_KEY")
             if not api_key:
-                logger.error("GOOGLE_API_KEY missing. Falling back to Ollama.")
-                return cls.create_llm("ollama", "llama3")
+                logger.error("GEMINI_API_KEY missing. Falling back to Ollama.")
+                return cls.create_llm("ollama")
             model = model_name or "gemini-1.5-pro"
             logger.info(f"Initializing Remote Google Gemini model: {model}")
-            return ChatGoogleGenerativeAI(model=model, google_api_key=api_key, temperature=0.0)
+            return ChatGoogleGenerativeAI(model=model, google_api_key=api_key, temperature=temperature)
             
         elif provider == "groq":
-            api_key = os.getenv("GROQ_API_KEY")
+            api_key = llm_cfg.get("groq_api_key") or os.getenv("GROQ_API_KEY")
             if not api_key:
                 logger.error("GROQ_API_KEY missing. Falling back to Ollama.")
-                return cls.create_llm("ollama", "llama3")
+                return cls.create_llm("ollama")
             model = model_name or "llama3-70b-8192"
             logger.info(f"Initializing Groq API model: {model}")
-            return ChatGroq(model=model, groq_api_key=api_key, temperature=0.0)
+            return ChatGroq(model=model, groq_api_key=api_key, temperature=temperature)
             
         else:
             logger.warning(f"Unknown provider '{provider}', defaulting to Ollama.")
-            return cls.create_llm("ollama", "llama3")
+            return cls.create_llm("ollama")
 
 

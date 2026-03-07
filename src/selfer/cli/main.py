@@ -297,9 +297,10 @@ async def _run_start_loop(name: str, use_telegram: bool, root_dir: str):
     # ── Auto-index ChromaDB if missing ──────────────────────────────────────
     chroma_dir = os.path.join(root_dir, ".selfer", "chroma_db")
     if not os.path.exists(chroma_dir):
-        console.print("[dim]First run: indexing repository into ChromaDB... (background)[/dim]")
-        loop = asyncio.get_event_loop()
-        asyncio.create_task(loop.run_in_executor(None, _sync_index, root_dir))
+        console.print("[dim]First run: indexing repository into ChromaDB...[/dim]")
+        # Must run in main thread synchronously — HuggingFace embeddings crash in background threads on Windows
+        from selfer.memory.memory_search import index_repository
+        index_repository(root_dir)
 
     # ── Signal Handler ──────────────────────────────────────────────────────
     shutdown_event = asyncio.Event()
@@ -342,11 +343,6 @@ async def _run_start_loop(name: str, use_telegram: bool, root_dir: str):
         await queue_manager.stop_worker()
         session_manager.flush_repo(root_dir)
         console.print("[success]✔ Selfer shut down cleanly.[/success]")
-
-
-def _sync_index(root_dir: str):
-    from selfer.memory.memory_search import index_repository
-    index_repository(root_dir)
 
 
 # ─── Interactive Chat Loop (Claude Code-style) ─────────────────────────────────

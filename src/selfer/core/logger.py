@@ -38,6 +38,32 @@ selfer_theme = Theme({
 
 console = Console(theme=selfer_theme)
 
+# ─── Suppress Noisy Third-Party Logs ──────────────────────────────────────────
+
+def _suppress_noisy_logs():
+    """Silence aggressive third-party loggers that pollute the console."""
+    noisy_modules = [
+        "chromadb",
+        "chromadb.telemetry",
+        "chromadb.segment.impl",
+        "httpx",
+        "httpcore",
+        "urllib3",
+        "langchain_core",
+        "langchain_community",
+        "langchain_huggingface",
+        "sentence_transformers",
+    ]
+    for mod in noisy_modules:
+        logging.getLogger(mod).setLevel(logging.ERROR)
+        
+    import warnings
+    warnings.filterwarnings("ignore", category=UserWarning)
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+_suppress_noisy_logs()
+
+
 
 # ─── Global Audit Logger ──────────────────────────────────────────────────────
 

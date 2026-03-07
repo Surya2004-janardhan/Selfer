@@ -25,7 +25,9 @@ Requires-Dist: python-telegram-bot>=21.10
 Requires-Dist: rich>=13.9.4
 Requires-Dist: setuptools>=75.8.0
 Requires-Dist: sqlalchemy>=2.0.38
-Requires-Dist: sentence-transformers>=5.2.3
+Requires-Dist: torch<2.5.0,>=2.2.0
+Requires-Dist: torchvision<0.20.0,>=0.17.0
+Requires-Dist: sentence-transformers>=3.0.0
 Requires-Dist: langchain-huggingface>=0.1.0
 Requires-Dist: numpy<2.0.0
 

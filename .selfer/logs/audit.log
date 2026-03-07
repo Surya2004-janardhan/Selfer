@@ -1,2 +1,5 @@
 [2026-03-07T15:23:12] [INFO] [query:global] [selfer] Database initialized successfully at C:\Users\chint\Desktop\selfer\.selfer\memory.db
 [2026-03-07T15:24:44] [INFO] [query:global] [selfer] Initializing Local Ollama model: llama3 at http://localhost:11434
+[2026-03-07T15:26:37] [INFO] [query:global] [selfer] Initializing Local Ollama model: llama3:8b at http://localhost:11434
+[2026-03-07T15:26:51] [INFO] [query:global] [selfer] Selfer Event Queue Worker online.
+[2026-03-07T15:26:51] [INFO] [query:global] [selfer] Indexing repository into high-speed local ChromaDB: C:\Users\chint\Desktop\selfer

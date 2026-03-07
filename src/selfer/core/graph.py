@@ -145,8 +145,10 @@ async def run_agent_async(messages: list, repo_state: str = "{}"):
         qs.log("graph", "Execution completed successfully.")
         audit_logger.info(f"Graph completed [{qs.session_id}]")
     except Exception as e:
-        qs.log("graph", f"Execution failed: {e}")
-        audit_logger.error(f"Graph failed [{qs.session_id}]: {e}")
+        import traceback
+        err_str = traceback.format_exc()
+        qs.log("graph", f"Execution failed: {e}\n{err_str}")
+        audit_logger.error(f"Graph failed [{qs.session_id}]:\n{err_str}")
         raise
     finally:
         # Flush query session to disk

@@ -1,7 +1,7 @@
 import os
 from langchain_chroma import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
-
+from langchain_ollama import OllamaEmbeddings
+from selfer.core.llm import LLMFactory
 try:
     from selfer.core.logger import logger
 except ImportError:
@@ -21,10 +21,13 @@ def get_chroma_db(root_dir: str) -> Chroma:
     Returns the Chroma vector store instance. 
     Uses a highly optimized local embedding model (all-MiniLM-L6-v2 is the default for HF but we can specify it).
     """
-    db_path = os.path.join(root_dir, ".selfer", "chroma_db")
-    # Utilizing a fast, CPU-friendly HuggingFace embedding model
-    embedding_func = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+    config = LLMFactory._get_config()
+    llm_cfg = config.get("llm", {})
+    base_url = llm_cfg.get("ollama_url") or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    model = llm_cfg.get("model", "llama3:8b")
     
+    # Utilizing local Ollama Embeddings API
+    embedding_func = OllamaEmbeddings(model=model, base_url=base_url)
     return Chroma(
         collection_name="selfer_memory",
         embedding_function=embedding_func,
@@ -71,11 +74,8 @@ def index_repository(root_dir: str):
     indexed_files = 0
     
     for dirpath, dirnames, filenames in os.walk(root_dir):
-        # Ignore bounds
-        if ".git" in dirnames: dirnames.remove(".git")
-        if ".venv" in dirnames: dirnames.remove(".venv")
-        if "node_modules" in dirnames: dirnames.remove("node_modules")
-        if ".selfer" in dirnames: dirnames.remove(".selfer")
+        # In-place modify dirnames to prevent os.walk from recursing
+        dirnames[:] = [d for d in dirnames if d not in [".git", ".venv", "node_modules", ".selfer", "__pycache__", "build", "dist", "src/selfer.egg-info"]]
             
         for filename in filenames:
             file_path = os.path.join(dirpath, filename)

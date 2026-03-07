@@ -3,3 +3,37 @@
 [2026-03-07T15:26:37] [INFO] [query:global] [selfer] Initializing Local Ollama model: llama3:8b at http://localhost:11434
 [2026-03-07T15:26:51] [INFO] [query:global] [selfer] Selfer Event Queue Worker online.
 [2026-03-07T15:26:51] [INFO] [query:global] [selfer] Indexing repository into high-speed local ChromaDB: C:\Users\chint\Desktop\selfer
+[2026-03-07T15:49:01] [INFO] [query:global] [selfer] Initializing Local Ollama model: llama3:8b at http://localhost:11434
+[2026-03-07T15:49:19] [INFO] [query:global] [selfer] Selfer Event Queue Worker online.
+[2026-03-07T15:49:20] [INFO] [query:global] [selfer] Enqueued background job [8acda8e1]: 1
+[2026-03-07T15:49:20] [INFO] [query:global] [selfer] Worker dequeued job [8acda8e1]
+[2026-03-07T15:49:20] [INFO] [query:b6de14f8] [graph] Starting graph execution [b6de14f8]
+[2026-03-07T15:49:20] [INFO] [selfer.audit] Graph invocation start — query: 1
+[2026-03-07T15:49:20] [INFO] [query:global] [selfer] ROUTER: Evaluating current state...
+[2026-03-07T15:49:20] [INFO] [query:global] [selfer] Initializing Local Ollama model: llama3:8b at http://localhost:11434
+[2026-03-07T15:49:26] [INFO] [query:global] [selfer] ROUTER Decision: planner
+[2026-03-07T15:49:26] [INFO] [query:global] [selfer] PLANNER: Devising execution plan...
+[2026-03-07T15:49:26] [INFO] [query:global] [selfer] Initializing Local Ollama model: llama3:8b at http://localhost:11434
+[2026-03-07T15:49:43] [INFO] [query:global] [selfer] PLANNER: Generated 6 steps.
+[2026-03-07T15:49:43] [INFO] [selfer.audit] [executor] node entered, session=b6de14f8
+[2026-03-07T15:49:43] [INFO] [query:b6de14f8] [executor] Evaluating step execution...
+[2026-03-07T15:49:43] [INFO] [query:global] [selfer] Initializing Local Ollama model: llama3:8b at http://localhost:11434
+[2026-03-07T15:49:43] [ERROR] [selfer.audit] Graph failed [b6de14f8]: 
+[2026-03-07T15:49:43] [ERROR] [query:global] [selfer] Worker failed job [8acda8e1]: 
+[2026-03-07T15:49:43] [INFO] [query:global] [selfer] Enqueued background job [e556a124]: Delete calculating api and create calculate_pi.py using mont
+[2026-03-07T15:49:43] [INFO] [query:global] [selfer] Worker dequeued job [e556a124]
+[2026-03-07T15:49:43] [INFO] [query:775b1b03] [graph] Starting graph execution [775b1b03]
+[2026-03-07T15:49:43] [INFO] [selfer.audit] Graph invocation start — query: Delete calculating api and create calculate_pi.py using monte carlo method
+[2026-03-07T15:49:43] [INFO] [query:global] [selfer] ROUTER: Evaluating current state...
+[2026-03-07T15:49:43] [INFO] [query:global] [selfer] Initializing Local Ollama model: llama3:8b at http://localhost:11434
+[2026-03-07T15:50:02] [INFO] [query:global] [selfer] ROUTER Decision: planner
+[2026-03-07T15:50:02] [INFO] [query:global] [selfer] PLANNER: Devising execution plan...
+[2026-03-07T15:50:02] [INFO] [query:global] [selfer] Initializing Local Ollama model: llama3:8b at http://localhost:11434
+[2026-03-07T15:51:01] [INFO] [query:global] [selfer] PLANNER: Generated 9 steps.
+[2026-03-07T15:51:01] [INFO] [selfer.audit] [executor] node entered, session=775b1b03
+[2026-03-07T15:51:01] [INFO] [query:775b1b03] [executor] Evaluating step execution...
+[2026-03-07T15:51:01] [INFO] [query:global] [selfer] Initializing Local Ollama model: llama3:8b at http://localhost:11434
+[2026-03-07T15:51:01] [ERROR] [selfer.audit] Graph failed [775b1b03]: 
+[2026-03-07T15:51:01] [ERROR] [query:global] [selfer] Worker failed job [e556a124]: 
+[2026-03-07T16:14:05] [INFO] [query:global] [selfer] Enqueued background job [ec378684]: create calculate_pi.py using monte carlo method
+[2026-03-07T16:23:13] [INFO] [query:global] [selfer] Enqueued background job [854f1458]: create calculate_pi.py using monte carlo method

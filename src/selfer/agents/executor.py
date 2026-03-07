@@ -47,9 +47,13 @@ async def executor_node(state: SelferState):
         
     step_desc = current_plan[current_step_idx]
     plan_str = "\n".join([f"{i+1}. {s}" for i,s in enumerate(current_plan)])
-    
-    llm = LLMFactory.create_llm().bind_tools(selfer_tools)
-    
+    llm = LLMFactory.create_llm()
+    bound_llm = llm.bind_tools(selfer_tools)
+    import inspect
+    if inspect.iscoroutine(bound_llm):
+        bound_llm = await bound_llm
+    llm = bound_llm
+
     # We create a focused context for the Executor, containing the recent tool messages
     # and the system prompt. We don't want to pass the entire chat history necessarily,
     # but for LangGraph standard setups, we append to `messages`.

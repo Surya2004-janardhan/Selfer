@@ -1,4 +1,4 @@
-import { loadWebMedia } from "../web/media.js";
+import { loadWebMedia } from "../media/load.js";
 
 export type OutboundMediaLoadOptions = {
   maxBytes?: number;

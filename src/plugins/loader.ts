@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createJiti } from "jiti";
-import type { OpenClawConfig } from "../config/config.js";
+import type { SelferConfig } from "../config/config.js";
 import type { GatewayRequestHandler } from "../gateway/server-methods/types.js";
 import { openBoundaryFileSync } from "../infra/boundary-file-read.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
@@ -15,7 +15,7 @@ import {
   resolveMemorySlotDecision,
   type NormalizedPluginsConfig,
 } from "./config-state.js";
-import { discoverOpenClawPlugins } from "./discovery.js";
+import { discoverSelferPlugins } from "./discovery.js";
 import { initializeGlobalHookRunner } from "./hook-runner-global.js";
 import { loadPluginManifestRegistry } from "./manifest-registry.js";
 import { isPathInside, safeStatSync } from "./path-safety.js";
@@ -25,8 +25,8 @@ import { createPluginRuntime } from "./runtime/index.js";
 import type { PluginRuntime } from "./runtime/types.js";
 import { validateJsonSchemaValue } from "./schema-validator.js";
 import type {
-  OpenClawPluginDefinition,
-  OpenClawPluginModule,
+  SelferPluginDefinition,
+  SelferPluginModule,
   PluginDiagnostic,
   PluginLogger,
 } from "./types.js";
@@ -34,7 +34,7 @@ import type {
 export type PluginLoadResult = PluginRegistry;
 
 export type PluginLoadOptions = {
-  config?: OpenClawConfig;
+  config?: SelferConfig;
   workspaceDir?: string;
   logger?: PluginLogger;
   coreGatewayHandlers?: Record<string, GatewayRequestHandler>;
@@ -92,20 +92,7 @@ const pluginSdkScopedAliasEntries = [
   { subpath: "core", srcFile: "core.ts", distFile: "core.js" },
   { subpath: "compat", srcFile: "compat.ts", distFile: "compat.js" },
   { subpath: "telegram", srcFile: "telegram.ts", distFile: "telegram.js" },
-  { subpath: "discord", srcFile: "discord.ts", distFile: "discord.js" },
-  { subpath: "slack", srcFile: "slack.ts", distFile: "slack.js" },
-  { subpath: "signal", srcFile: "signal.ts", distFile: "signal.js" },
-  { subpath: "imessage", srcFile: "imessage.ts", distFile: "imessage.js" },
-  { subpath: "whatsapp", srcFile: "whatsapp.ts", distFile: "whatsapp.js" },
-  { subpath: "line", srcFile: "line.ts", distFile: "line.js" },
-  { subpath: "msteams", srcFile: "msteams.ts", distFile: "msteams.js" },
   { subpath: "acpx", srcFile: "acpx.ts", distFile: "acpx.js" },
-  { subpath: "bluebubbles", srcFile: "bluebubbles.ts", distFile: "bluebubbles.js" },
-  {
-    subpath: "copilot-proxy",
-    srcFile: "copilot-proxy.ts",
-    distFile: "copilot-proxy.js",
-  },
   { subpath: "device-pair", srcFile: "device-pair.ts", distFile: "device-pair.js" },
   {
     subpath: "diagnostics-otel",
@@ -113,18 +100,13 @@ const pluginSdkScopedAliasEntries = [
     distFile: "diagnostics-otel.js",
   },
   { subpath: "diffs", srcFile: "diffs.ts", distFile: "diffs.js" },
-  { subpath: "feishu", srcFile: "feishu.ts", distFile: "feishu.js" },
   {
     subpath: "google-gemini-cli-auth",
     srcFile: "google-gemini-cli-auth.ts",
     distFile: "google-gemini-cli-auth.js",
   },
-  { subpath: "googlechat", srcFile: "googlechat.ts", distFile: "googlechat.js" },
-  { subpath: "irc", srcFile: "irc.ts", distFile: "irc.js" },
   { subpath: "llm-task", srcFile: "llm-task.ts", distFile: "llm-task.js" },
   { subpath: "lobster", srcFile: "lobster.ts", distFile: "lobster.js" },
-  { subpath: "matrix", srcFile: "matrix.ts", distFile: "matrix.js" },
-  { subpath: "mattermost", srcFile: "mattermost.ts", distFile: "mattermost.js" },
   { subpath: "memory-core", srcFile: "memory-core.ts", distFile: "memory-core.js" },
   {
     subpath: "memory-lancedb",
@@ -136,12 +118,6 @@ const pluginSdkScopedAliasEntries = [
     srcFile: "minimax-portal-auth.ts",
     distFile: "minimax-portal-auth.js",
   },
-  {
-    subpath: "nextcloud-talk",
-    srcFile: "nextcloud-talk.ts",
-    distFile: "nextcloud-talk.js",
-  },
-  { subpath: "nostr", srcFile: "nostr.ts", distFile: "nostr.js" },
   { subpath: "open-prose", srcFile: "open-prose.ts", distFile: "open-prose.js" },
   {
     subpath: "phone-control",
@@ -153,11 +129,6 @@ const pluginSdkScopedAliasEntries = [
     srcFile: "qwen-portal-auth.ts",
     distFile: "qwen-portal-auth.js",
   },
-  {
-    subpath: "synology-chat",
-    srcFile: "synology-chat.ts",
-    distFile: "synology-chat.js",
-  },
   { subpath: "talk-voice", srcFile: "talk-voice.ts", distFile: "talk-voice.js" },
   { subpath: "test-utils", srcFile: "test-utils.ts", distFile: "test-utils.js" },
   {
@@ -165,11 +136,7 @@ const pluginSdkScopedAliasEntries = [
     srcFile: "thread-ownership.ts",
     distFile: "thread-ownership.js",
   },
-  { subpath: "tlon", srcFile: "tlon.ts", distFile: "tlon.js" },
-  { subpath: "twitch", srcFile: "twitch.ts", distFile: "twitch.js" },
   { subpath: "voice-call", srcFile: "voice-call.ts", distFile: "voice-call.js" },
-  { subpath: "zalo", srcFile: "zalo.ts", distFile: "zalo.js" },
-  { subpath: "zalouser", srcFile: "zalouser.ts", distFile: "zalouser.js" },
   { subpath: "account-id", srcFile: "account-id.ts", distFile: "account-id.js" },
   {
     subpath: "keyed-async-queue",
@@ -186,7 +153,7 @@ const resolvePluginSdkScopedAliasMap = (): Record<string, string> => {
       distFile: entry.distFile,
     });
     if (resolved) {
-      aliasMap[`openclaw/plugin-sdk/${entry.subpath}`] = resolved;
+      aliasMap[`selfer/plugin-sdk/${entry.subpath}`] = resolved;
     }
   }
   return aliasMap;
@@ -226,8 +193,8 @@ function validatePluginConfig(params: {
 }
 
 function resolvePluginModuleExport(moduleExport: unknown): {
-  definition?: OpenClawPluginDefinition;
-  register?: OpenClawPluginDefinition["register"];
+  definition?: SelferPluginDefinition;
+  register?: SelferPluginDefinition["register"];
 } {
   const resolved =
     moduleExport &&
@@ -237,11 +204,11 @@ function resolvePluginModuleExport(moduleExport: unknown): {
       : moduleExport;
   if (typeof resolved === "function") {
     return {
-      register: resolved as OpenClawPluginDefinition["register"],
+      register: resolved as SelferPluginDefinition["register"],
     };
   }
   if (resolved && typeof resolved === "object") {
-    const def = resolved as OpenClawPluginDefinition;
+    const def = resolved as SelferPluginDefinition;
     const register = def.register ?? def.activate;
     return { definition: def, register };
   }
@@ -366,7 +333,7 @@ function matchesPathMatcher(matcher: PathMatcher, sourcePath: string): boolean {
 }
 
 function buildProvenanceIndex(params: {
-  config: OpenClawConfig;
+  config: SelferConfig;
   normalizedLoadPaths: string[];
 }): PluginProvenanceIndex {
   const loadPathMatcher = createPathMatcher();
@@ -476,7 +443,7 @@ function activatePluginRegistry(registry: PluginRegistry, cacheKey: string): voi
   initializeGlobalHookRunner(registry);
 }
 
-export function loadOpenClawPlugins(options: PluginLoadOptions = {}): PluginRegistry {
+export function loadSelferPlugins(options: PluginLoadOptions = {}): PluginRegistry {
   // Test env: default-disable plugins unless explicitly configured.
   // This keeps unit/gateway suites fast and avoids loading heavyweight plugin deps by accident.
   const cfg = applyTestPluginDefaults(options.config ?? {}, process.env);
@@ -538,7 +505,7 @@ export function loadOpenClawPlugins(options: PluginLoadOptions = {}): PluginRegi
     coreGatewayHandlers: options.coreGatewayHandlers as Record<string, GatewayRequestHandler>,
   });
 
-  const discovery = discoverOpenClawPlugins({
+  const discovery = discoverSelferPlugins({
     workspaceDir: options.workspaceDir,
     extraPaths: normalized.loadPaths,
     cache: options.cache,
@@ -574,7 +541,7 @@ export function loadOpenClawPlugins(options: PluginLoadOptions = {}): PluginRegi
     }
     const pluginSdkAlias = resolvePluginSdkAlias();
     const aliasMap = {
-      ...(pluginSdkAlias ? { "openclaw/plugin-sdk": pluginSdkAlias } : {}),
+      ...(pluginSdkAlias ? { "selfer/plugin-sdk": pluginSdkAlias } : {}),
       ...resolvePluginSdkScopedAliasMap(),
     };
     jitiLoader = createJiti(import.meta.url, {
@@ -704,9 +671,9 @@ export function loadOpenClawPlugins(options: PluginLoadOptions = {}): PluginRegi
     const safeSource = opened.path;
     fs.closeSync(opened.fd);
 
-    let mod: OpenClawPluginModule | null = null;
+    let mod: SelferPluginModule | null = null;
     try {
-      mod = getJiti()(safeSource) as OpenClawPluginModule;
+      mod = getJiti()(safeSource) as SelferPluginModule;
     } catch (err) {
       recordPluginError({
         logger,

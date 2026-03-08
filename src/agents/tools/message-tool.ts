@@ -11,7 +11,7 @@ import {
   CHANNEL_MESSAGE_ACTION_NAMES,
   type ChannelMessageActionName,
 } from "../../channels/plugins/types.js";
-import type { OpenClawConfig } from "../../config/config.js";
+import type { SelferConfig } from "../../config/config.js";
 import { loadConfig } from "../../config/config.js";
 import { GATEWAY_CLIENT_IDS, GATEWAY_CLIENT_MODES } from "../../gateway/protocol/client-info.js";
 import { getToolResult, runMessageAction } from "../../infra/outbound/message-action-runner.js";
@@ -378,7 +378,7 @@ const MessageToolSchema = buildMessageToolSchemaFromActions(AllMessageActions, {
 type MessageToolOptions = {
   agentAccountId?: string;
   agentSessionKey?: string;
-  config?: OpenClawConfig;
+  config?: SelferConfig;
   currentChannelId?: string;
   currentChannelProvider?: string;
   currentThreadTs?: string;
@@ -391,7 +391,7 @@ type MessageToolOptions = {
 };
 
 function resolveMessageToolSchemaActions(params: {
-  cfg: OpenClawConfig;
+  cfg: SelferConfig;
   currentChannelProvider?: string;
   currentChannelId?: string;
 }): string[] {
@@ -423,7 +423,7 @@ function resolveMessageToolSchemaActions(params: {
 }
 
 function resolveIncludeTelegramPollExtras(params: {
-  cfg: OpenClawConfig;
+  cfg: SelferConfig;
   currentChannelProvider?: string;
 }): boolean {
   return listChannelSupportedActions({
@@ -433,7 +433,7 @@ function resolveIncludeTelegramPollExtras(params: {
 }
 
 function buildMessageToolSchema(params: {
-  cfg: OpenClawConfig;
+  cfg: SelferConfig;
   currentChannelProvider?: string;
   currentChannelId?: string;
 }) {
@@ -472,7 +472,7 @@ function filterActionsForContext(params: {
 }
 
 function buildMessageToolDescription(options?: {
-  config?: OpenClawConfig;
+  config?: SelferConfig;
   currentChannel?: string;
   currentChannelId?: string;
 }): string {

@@ -1,17 +1,17 @@
-import type { OpenClawConfig } from "../config/config.js";
+import type { SelferConfig } from "../config/config.js";
 import type { WizardPrompter } from "../wizard/prompts.js";
 import { ensureModelAllowlistEntry } from "./model-allowlist.js";
 
 export async function applyDefaultModelChoice(params: {
-  config: OpenClawConfig;
+  config: SelferConfig;
   setDefaultModel: boolean;
   defaultModel: string;
-  applyDefaultConfig: (config: OpenClawConfig) => OpenClawConfig;
-  applyProviderConfig: (config: OpenClawConfig) => OpenClawConfig;
+  applyDefaultConfig: (config: SelferConfig) => SelferConfig;
+  applyProviderConfig: (config: SelferConfig) => SelferConfig;
   noteDefault?: string;
   noteAgentModel: (model: string) => Promise<void>;
   prompter: WizardPrompter;
-}): Promise<{ config: OpenClawConfig; agentModelOverride?: string }> {
+}): Promise<{ config: SelferConfig; agentModelOverride?: string }> {
   if (params.setDefaultModel) {
     const next = params.applyDefaultConfig(params.config);
     if (params.noteDefault) {

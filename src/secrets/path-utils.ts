@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
-import type { OpenClawConfig } from "../config/config.js";
+import type { SelferConfig } from "../config/config.js";
 import { isRecord } from "./shared.js";
 
 function isArrayIndexSegment(segment: string): boolean {
@@ -32,7 +32,7 @@ export function getPath(root: unknown, segments: string[]): unknown {
 }
 
 export function setPathCreateStrict(
-  root: OpenClawConfig,
+  root: SelferConfig,
   segments: string[],
   value: unknown,
 ): boolean {
@@ -99,7 +99,7 @@ export function setPathCreateStrict(
 }
 
 export function setPathExistingStrict(
-  root: OpenClawConfig,
+  root: SelferConfig,
   segments: string[],
   value: unknown,
 ): boolean {
@@ -160,7 +160,7 @@ export function setPathExistingStrict(
   return false;
 }
 
-export function deletePathStrict(root: OpenClawConfig, segments: string[]): boolean {
+export function deletePathStrict(root: SelferConfig, segments: string[]): boolean {
   if (segments.length === 0) {
     throw new Error("Target path is empty.");
   }

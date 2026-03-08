@@ -147,4 +147,4 @@ export type ConfigFileSnapshot = {
   legacyIssues: LegacyConfigIssue[];
 };
 
-export type OpenClawConfig = SelferConfig;
+export type SelferConfig = SelferConfig;

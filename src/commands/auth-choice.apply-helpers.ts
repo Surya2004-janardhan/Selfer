@@ -1,5 +1,5 @@
 import { resolveEnvApiKey } from "../agents/model-auth.js";
-import type { OpenClawConfig } from "../config/types.js";
+import type { SelferConfig } from "../config/types.js";
 import {
   isValidEnvSecretRefId,
   type SecretInput,
@@ -63,7 +63,7 @@ function resolveDefaultFilePointerId(provider: string): string {
 }
 
 function resolveRefFallbackInput(params: {
-  config: OpenClawConfig;
+  config: SelferConfig;
   provider: string;
   preferredEnvVar?: string;
 }): { ref: SecretRef; resolvedValue: string } {
@@ -93,7 +93,7 @@ function resolveRefFallbackInput(params: {
 
 export async function promptSecretRefForOnboarding(params: {
   provider: string;
-  config: OpenClawConfig;
+  config: SelferConfig;
   prompter: WizardPrompter;
   preferredEnvVar?: string;
   copy?: SecretRefOnboardingPromptCopy;
@@ -166,7 +166,7 @@ export async function promptSecretRefForOnboarding(params: {
       });
       await params.prompter.note(
         params.copy?.envValidatedMessage?.(envVar) ??
-          `Validated environment variable ${envVar}. OpenClaw will store a reference, not the key value.`,
+          `Validated environment variable ${envVar}. Selfer will store a reference, not the key value.`,
         "Reference validated",
       );
       return { ref, resolvedValue };
@@ -254,7 +254,7 @@ export async function promptSecretRefForOnboarding(params: {
       });
       await params.prompter.note(
         params.copy?.providerValidatedMessage?.(selectedProvider, id, providerEntry.source) ??
-          `Validated ${providerEntry.source} reference ${selectedProvider}:${id}. OpenClaw will store a reference, not the key value.`,
+          `Validated ${providerEntry.source} reference ${selectedProvider}:${id}. Selfer will store a reference, not the key value.`,
         "Reference validated",
       );
       return { ref, resolvedValue };
@@ -395,7 +395,7 @@ export async function resolveSecretInputModeForEnvSelection(params: {
       {
         value: "plaintext",
         label: params.copy?.plaintextLabel ?? "Paste API key now",
-        hint: params.copy?.plaintextHint ?? "Stores the key directly in OpenClaw config",
+        hint: params.copy?.plaintextHint ?? "Stores the key directly in Selfer config",
       },
       {
         value: "ref",
@@ -433,7 +433,7 @@ export async function ensureApiKeyFromOptionEnvOrPrompt(params: {
   token: string | undefined;
   tokenProvider: string | undefined;
   secretInputMode?: SecretInputMode;
-  config: OpenClawConfig;
+  config: SelferConfig;
   expectedProviders: string[];
   provider: string;
   envLabel: string;
@@ -475,7 +475,7 @@ export async function ensureApiKeyFromOptionEnvOrPrompt(params: {
 }
 
 export async function ensureApiKeyFromEnvOrPrompt(params: {
-  config: OpenClawConfig;
+  config: SelferConfig;
   provider: string;
   envLabel: string;
   promptMessage: string;

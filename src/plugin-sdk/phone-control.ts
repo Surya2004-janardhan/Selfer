@@ -2,8 +2,8 @@
 // Keep this list additive and scoped to symbols used under extensions/phone-control.
 
 export type {
-  OpenClawPluginApi,
-  OpenClawPluginCommandDefinition,
-  OpenClawPluginService,
+  SelferPluginApi,
+  SelferPluginCommandDefinition,
+  SelferPluginService,
   PluginCommandContext,
 } from "../plugins/types.js";

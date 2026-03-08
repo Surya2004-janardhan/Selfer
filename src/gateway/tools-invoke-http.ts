@@ -210,11 +210,11 @@ export async function handleToolsInvokeHttpRequest(
 
   // Resolve message channel/account hints (optional headers) for policy inheritance.
   const messageChannel = normalizeMessageChannel(
-    getHeader(req, "x-openclaw-message-channel") ?? "",
+    getHeader(req, "x-Selfer-message-channel") ?? "",
   );
-  const accountId = getHeader(req, "x-openclaw-account-id")?.trim() || undefined;
-  const agentTo = getHeader(req, "x-openclaw-message-to")?.trim() || undefined;
-  const agentThreadId = getHeader(req, "x-openclaw-thread-id")?.trim() || undefined;
+  const accountId = getHeader(req, "x-Selfer-account-id")?.trim() || undefined;
+  const agentTo = getHeader(req, "x-Selfer-message-to")?.trim() || undefined;
+  const agentThreadId = getHeader(req, "x-Selfer-thread-id")?.trim() || undefined;
 
   const {
     agentId,

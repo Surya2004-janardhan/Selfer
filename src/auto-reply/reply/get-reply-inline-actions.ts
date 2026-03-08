@@ -3,7 +3,7 @@ import { createSelferTools } from "../../agents/selfer-tools.js";
 import type { SkillCommandSpec } from "../../agents/skills.js";
 import { applyOwnerOnlyToolPolicy } from "../../agents/tool-policy.js";
 import { getChannelDock } from "../../channels/dock.js";
-import type { SelferConfig as OpenClawConfig } from "../../config/config.js";
+import type { SelferConfig as SelferConfig } from "../../config/config.js";
 import type { SessionEntry } from "../../config/sessions.js";
 import { logVerbose } from "../../globals.js";
 import { generateSecureToken } from "../../infra/secure-random.js";
@@ -80,7 +80,7 @@ function extractTextFromToolResult(result: any): string | null {
 export async function handleInlineActions(params: {
   ctx: MsgContext;
   sessionCtx: TemplateContext;
-  cfg: OpenClawConfig;
+  cfg: SelferConfig;
   agentId: string;
   agentDir?: string;
   sessionEntry?: SessionEntry;

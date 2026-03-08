@@ -1,4 +1,4 @@
-import { loadConfig, type OpenClawConfig } from "../config/config.js";
+import { loadConfig, type SelferConfig } from "../config/config.js";
 import { normalizeSecretInputString, resolveSecretInputRef } from "../config/types.secrets.js";
 import { GatewayClient } from "../gateway/client.js";
 import { loadOrCreateDeviceIdentity } from "../infra/device-identity.js";
@@ -111,7 +111,7 @@ function ensureNodePathEnv(): string {
 }
 
 async function resolveNodeHostSecretInputString(params: {
-  config: OpenClawConfig;
+  config: SelferConfig;
   value: unknown;
   path: string;
   env: NodeJS.ProcessEnv;
@@ -144,7 +144,7 @@ async function resolveNodeHostSecretInputString(params: {
 }
 
 export async function resolveNodeHostGatewayCredentials(params: {
-  config: OpenClawConfig;
+  config: SelferConfig;
   env?: NodeJS.ProcessEnv;
 }): Promise<{ token?: string; password?: string }> {
   const env = params.env ?? process.env;
@@ -160,7 +160,7 @@ export async function resolveNodeHostGatewayCredentials(params: {
     : params.config.gateway?.auth?.password;
 
   const token =
-    normalizeSecretInputString(env.OPENCLAW_GATEWAY_TOKEN) ??
+    normalizeSecretInputString(env.Selfer_GATEWAY_TOKEN) ??
     (await resolveNodeHostSecretInputString({
       config: params.config,
       value: configuredToken,
@@ -172,11 +172,11 @@ export async function resolveNodeHostGatewayCredentials(params: {
     authMode === "password" ||
     (authMode !== "token" && authMode !== "none" && authMode !== "trusted-proxy" && !tokenCanWin);
   const shouldResolveConfiguredPassword =
-    !normalizeSecretInputString(env.OPENCLAW_GATEWAY_PASSWORD) &&
+    !normalizeSecretInputString(env.Selfer_GATEWAY_PASSWORD) &&
     !tokenCanWin &&
     (isRemoteMode || localPasswordCanWin);
   const password =
-    normalizeSecretInputString(env.OPENCLAW_GATEWAY_PASSWORD) ??
+    normalizeSecretInputString(env.Selfer_GATEWAY_PASSWORD) ??
     (shouldResolveConfiguredPassword
       ? await resolveNodeHostSecretInputString({
           config: params.config,

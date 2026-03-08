@@ -13,7 +13,7 @@ import path from "node:path";
 import type { ReplyPayload } from "../auto-reply/types.js";
 import { normalizeChannelId } from "../channels/plugins/index.js";
 import type { ChannelId } from "../channels/plugins/types.js";
-import type { OpenClawConfig } from "../config/config.js";
+import type { SelferConfig } from "../config/config.js";
 import { normalizeResolvedSecretInputString } from "../config/types.secrets.js";
 import type {
   TtsConfig,
@@ -23,7 +23,7 @@ import type {
   TtsModelOverrideConfig,
 } from "../config/types.tts.js";
 import { logVerbose } from "../globals.js";
-import { resolvePreferredSelferTmpDir } from "../infra/tmp-openclaw-dir.js";
+import { resolvePreferredSelferTmpDir } from "../infra/tmp-Selfer-dir.js";
 import { stripMarkdown } from "../utils/markdown-strip.js";
 import { isVoiceCompatibleAudio } from "../media/audio.js";
 import { CONFIG_DIR, resolveUserPath } from "../utils.js";
@@ -255,7 +255,7 @@ function resolveModelOverridePolicy(
   };
 }
 
-export function resolveTtsConfig(cfg: OpenClawConfig): ResolvedTtsConfig {
+export function resolveTtsConfig(cfg: SelferConfig): ResolvedTtsConfig {
   const raw: TtsConfig = cfg.messages?.tts ?? {};
   const providerSource = raw.provider ? "config" : "default";
   const edgeOutputFormat = raw.edge?.outputFormat?.trim();
@@ -328,7 +328,7 @@ export function resolveTtsPrefsPath(config: ResolvedTtsConfig): string {
   if (config.prefsPath?.trim()) {
     return resolveUserPath(config.prefsPath.trim());
   }
-  const envPath = process.env.OPENCLAW_TTS_PREFS?.trim();
+  const envPath = process.env.Selfer_TTS_PREFS?.trim();
   if (envPath) {
     return resolveUserPath(envPath);
   }
@@ -362,7 +362,7 @@ export function resolveTtsAutoMode(params: {
   return params.config.auto;
 }
 
-export function buildTtsSystemPromptHint(cfg: OpenClawConfig): string | undefined {
+export function buildTtsSystemPromptHint(cfg: SelferConfig): string | undefined {
   const config = resolveTtsConfig(cfg);
   const prefsPath = resolveTtsPrefsPath(config);
   const autoMode = resolveTtsAutoMode({ config, prefsPath });
@@ -556,7 +556,7 @@ function buildTtsFailureResult(errors: string[]): { success: false; error: strin
 
 export async function textToSpeech(params: {
   text: string;
-  cfg: OpenClawConfig;
+  cfg: SelferConfig;
   prefsPath?: string;
   channel?: string;
   overrides?: TtsDirectiveOverrides;
@@ -724,7 +724,7 @@ export async function textToSpeech(params: {
 
 export async function textToSpeechTelephony(params: {
   text: string;
-  cfg: OpenClawConfig;
+  cfg: SelferConfig;
   prefsPath?: string;
 }): Promise<TtsTelephonyResult> {
   const config = resolveTtsConfig(params.cfg);
@@ -811,7 +811,7 @@ export async function textToSpeechTelephony(params: {
 
 export async function maybeApplyTtsToPayload(params: {
   payload: ReplyPayload;
-  cfg: OpenClawConfig;
+  cfg: SelferConfig;
   channel?: string;
   kind?: "tool" | "block" | "final";
   inboundAudio?: boolean;

@@ -1,5 +1,5 @@
 import { readConfigFileSnapshot, resolveGatewayPort } from "../config/config.js";
-import type { OpenClawConfig } from "../config/types.js";
+import type { SelferConfig } from "../config/types.js";
 import { resolveSecretInputRef } from "../config/types.secrets.js";
 import { copyToClipboard } from "../infra/clipboard.js";
 import type { RuntimeEnv } from "../runtime.js";
@@ -18,7 +18,7 @@ type DashboardOptions = {
 };
 
 function readGatewayTokenEnv(env: NodeJS.ProcessEnv): string | undefined {
-  const primary = env.OPENCLAW_GATEWAY_TOKEN?.trim();
+  const primary = env.Selfer_GATEWAY_TOKEN?.trim();
   if (primary) {
     return primary;
   }
@@ -27,7 +27,7 @@ function readGatewayTokenEnv(env: NodeJS.ProcessEnv): string | undefined {
 }
 
 async function resolveDashboardToken(
-  cfg: OpenClawConfig,
+  cfg: SelferConfig,
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<{
   token?: string;
@@ -117,7 +117,7 @@ export async function dashboardCommand(
   if (resolvedToken.unresolvedRefReason) {
     runtime.log(`Token auto-auth unavailable: ${resolvedToken.unresolvedRefReason}`);
     runtime.log(
-      "Set OPENCLAW_GATEWAY_TOKEN in this shell or resolve your secret provider, then rerun `openclaw dashboard`.",
+      "Set Selfer_GATEWAY_TOKEN in this shell or resolve your secret provider, then rerun `Selfer dashboard`.",
     );
   }
 
@@ -143,7 +143,7 @@ export async function dashboardCommand(
   }
 
   if (opened) {
-    runtime.log("Opened in your browser. Keep that tab to control OpenClaw.");
+    runtime.log("Opened in your browser. Keep that tab to control Selfer.");
   } else if (hint) {
     runtime.log(hint);
   }

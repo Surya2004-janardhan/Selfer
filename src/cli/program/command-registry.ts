@@ -41,12 +41,26 @@ const coreEntries: CoreCliEntry[] = [
   {
     commands: [
       {
+        name: "init",
+        description: "Initialize local config with Ollama defaults and create agent workspace",
+        hasSubcommands: false,
+      },
+      {
+        name: "start",
+        description: "Start Selfer in interactive chat or daemon mode",
+        hasSubcommands: false,
+      },
+      {
         name: "setup",
-        description: "Initialize local config and agent workspace",
+        description: "Initialize local config and agent workspace (legacy)",
         hasSubcommands: false,
       },
     ],
     register: async ({ program }) => {
+      const modInit = await import("./register.init.js");
+      modInit.registerInitCommand(program);
+      const modStart = await import("./register.start.js");
+      modStart.registerStartCommand(program);
       const mod = await import("./register.setup.js");
       mod.registerSetupCommand(program);
     },
@@ -193,7 +207,7 @@ const coreEntries: CoreCliEntry[] = [
     commands: [
       {
         name: "browser",
-        description: "Manage OpenClaw's dedicated browser (Chrome/Chromium)",
+        description: "Manage Selfer's dedicated browser (Chrome/Chromium)",
         hasSubcommands: true,
       },
     ],

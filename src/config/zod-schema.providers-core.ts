@@ -6,7 +6,6 @@ import {
   resolveSlackNativeStreaming,
   resolveSlackStreamingMode,
   resolveTelegramPreviewStreamMode,
-} from "./discord-preview-streaming.js";
 import {
   normalizeTelegramCommandDescription,
   normalizeTelegramCommandName,
@@ -343,7 +342,6 @@ export const TelegramConfigSchema = TelegramAccountSchemaBase.extend({
   validateTelegramWebhookSecretRequirements(value, ctx);
 });
 
-export const DiscordDmSchema = z
   .object({
     enabled: z.boolean().optional(),
     policy: DmPolicySchema.optional(),
@@ -353,7 +351,6 @@ export const DiscordDmSchema = z
   })
   .strict();
 
-export const DiscordGuildChannelSchema = z
   .object({
     allow: z.boolean().optional(),
     requireMention: z.boolean().optional(),
@@ -370,7 +367,6 @@ export const DiscordGuildChannelSchema = z
   })
   .strict();
 
-export const DiscordGuildSchema = z
   .object({
     slug: z.string().optional(),
     requireMention: z.boolean().optional(),
@@ -414,7 +410,6 @@ const DiscordVoiceSchema = z
   .strict()
   .optional();
 
-export const DiscordAccountSchema = z
   .object({
     name: z.string().optional(),
     capabilities: z.array(z.string()).optional(),
@@ -466,7 +461,6 @@ export const DiscordAccountSchema = z
       .strict()
       .optional(),
     replyToMode: ReplyToModeSchema.optional(),
-    // Aliases for channels.discord.dm.policy / channels.discord.dm.allowFrom. Prefer these for
     // inheritance in multi-account setups (shallow merge works; nested dm object doesn't).
     dmPolicy: DmPolicySchema.optional(),
     allowFrom: DiscordIdListSchema.optional(),
@@ -567,7 +561,6 @@ export const DiscordAccountSchema = z
     if ((hasActivityType || hasActivityUrl) && !hasActivity) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "channels.discord.activity is required when activityType or activityUrl is set",
         path: ["activity"],
       });
     }
@@ -575,7 +568,6 @@ export const DiscordAccountSchema = z
     if (value.activityType === 1 && !hasActivityUrl) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "channels.discord.activityUrl is required when activityType is 1 (Streaming)",
         path: ["activityUrl"],
       });
     }
@@ -583,7 +575,6 @@ export const DiscordAccountSchema = z
     if (hasActivityUrl && value.activityType !== 1) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "channels.discord.activityType must be 1 (Streaming) when activityUrl is set",
         path: ["activityType"],
       });
     }
@@ -598,7 +589,6 @@ export const DiscordAccountSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message:
-          "channels.discord.autoPresence.minUpdateIntervalMs must be less than or equal to channels.discord.autoPresence.intervalMs",
         path: ["autoPresence", "minUpdateIntervalMs"],
       });
     }
@@ -607,7 +597,6 @@ export const DiscordAccountSchema = z
     // can inherit top-level allowFrom via runtime shallow merge.
   });
 
-export const DiscordConfigSchema = DiscordAccountSchema.extend({
   accounts: z.record(z.string(), DiscordAccountSchema.optional()).optional(),
   defaultAccount: z.string().optional(),
 }).superRefine((value, ctx) => {
@@ -621,7 +610,6 @@ export const DiscordConfigSchema = DiscordAccountSchema.extend({
     ctx,
     path: [...allowFromPath],
     message:
-      'channels.discord.dmPolicy="open" requires channels.discord.allowFrom (or channels.discord.dm.allowFrom) to include "*"',
   });
   requireAllowlistAllowFrom({
     policy: dmPolicy,
@@ -629,7 +617,6 @@ export const DiscordConfigSchema = DiscordAccountSchema.extend({
     ctx,
     path: [...allowFromPath],
     message:
-      'channels.discord.dmPolicy="allowlist" requires channels.discord.allowFrom (or channels.discord.dm.allowFrom) to contain at least one sender ID',
   });
 
   if (!value.accounts) {
@@ -649,7 +636,6 @@ export const DiscordConfigSchema = DiscordAccountSchema.extend({
       ctx,
       path: ["accounts", accountId, "allowFrom"],
       message:
-        'channels.discord.accounts.*.dmPolicy="open" requires channels.discord.accounts.*.allowFrom (or channels.discord.allowFrom) to include "*"',
     });
     requireAllowlistAllowFrom({
       policy: effectivePolicy,
@@ -657,7 +643,6 @@ export const DiscordConfigSchema = DiscordAccountSchema.extend({
       ctx,
       path: ["accounts", accountId, "allowFrom"],
       message:
-        'channels.discord.accounts.*.dmPolicy="allowlist" requires channels.discord.accounts.*.allowFrom (or channels.discord.allowFrom) to contain at least one sender ID',
     });
   }
 });
@@ -749,7 +734,6 @@ export const GoogleChatConfigSchema = GoogleChatAccountSchema.extend({
   defaultAccount: z.string().optional(),
 });
 
-export const SlackDmSchema = z
   .object({
     enabled: z.boolean().optional(),
     policy: DmPolicySchema.optional(),
@@ -760,7 +744,6 @@ export const SlackDmSchema = z
   })
   .strict();
 
-export const SlackChannelSchema = z
   .object({
     enabled: z.boolean().optional(),
     allow: z.boolean().optional(),
@@ -774,7 +757,6 @@ export const SlackChannelSchema = z
   })
   .strict();
 
-export const SlackThreadSchema = z
   .object({
     historyScope: z.enum(["thread", "channel"]).optional(),
     inheritParent: z.boolean().optional(),
@@ -790,7 +772,6 @@ const SlackReplyToModeByChatTypeSchema = z
   })
   .strict();
 
-export const SlackAccountSchema = z
   .object({
     name: z.string().optional(),
     mode: z.enum(["socket", "http"]).optional(),
@@ -847,7 +828,6 @@ export const SlackAccountSchema = z
       })
       .strict()
       .optional(),
-    // Aliases for channels.slack.dm.policy / channels.slack.dm.allowFrom. Prefer these for
     // inheritance in multi-account setups (shallow merge works; nested dm object doesn't).
     dmPolicy: DmPolicySchema.optional(),
     allowFrom: z.array(z.union([z.string(), z.number()])).optional(),
@@ -867,7 +847,6 @@ export const SlackAccountSchema = z
     // can inherit top-level allowFrom via runtime shallow merge.
   });
 
-export const SlackConfigSchema = SlackAccountSchema.safeExtend({
   mode: z.enum(["socket", "http"]).optional().default("socket"),
   signingSecret: SecretInputSchema.optional().register(sensitive),
   webhookPath: z.string().optional().default("/slack/events"),
@@ -885,7 +864,6 @@ export const SlackConfigSchema = SlackAccountSchema.safeExtend({
     ctx,
     path: [...allowFromPath],
     message:
-      'channels.slack.dmPolicy="open" requires channels.slack.allowFrom (or channels.slack.dm.allowFrom) to include "*"',
   });
   requireAllowlistAllowFrom({
     policy: dmPolicy,
@@ -893,7 +871,6 @@ export const SlackConfigSchema = SlackAccountSchema.safeExtend({
     ctx,
     path: [...allowFromPath],
     message:
-      'channels.slack.dmPolicy="allowlist" requires channels.slack.allowFrom (or channels.slack.dm.allowFrom) to contain at least one sender ID',
   });
 
   const baseMode = value.mode ?? "socket";
@@ -919,7 +896,6 @@ export const SlackConfigSchema = SlackAccountSchema.safeExtend({
       ctx,
       path: ["accounts", accountId, "allowFrom"],
       message:
-        'channels.slack.accounts.*.dmPolicy="open" requires channels.slack.accounts.*.allowFrom (or channels.slack.allowFrom) to include "*"',
     });
     requireAllowlistAllowFrom({
       policy: effectivePolicy,
@@ -927,7 +903,6 @@ export const SlackConfigSchema = SlackAccountSchema.safeExtend({
       ctx,
       path: ["accounts", accountId, "allowFrom"],
       message:
-        'channels.slack.accounts.*.dmPolicy="allowlist" requires channels.slack.accounts.*.allowFrom (or channels.slack.allowFrom) to contain at least one sender ID',
     });
     if (accountMode !== "http") {
       continue;
@@ -936,7 +911,6 @@ export const SlackConfigSchema = SlackAccountSchema.safeExtend({
   validateSlackSigningSecretRequirements(value, ctx);
 });
 
-export const SignalAccountSchemaBase = z
   .object({
     name: z.string().optional(),
     capabilities: z.array(z.string()).optional(),
@@ -984,9 +958,7 @@ export const SignalAccountSchemaBase = z
 // Account-level schemas skip allowFrom validation because accounts inherit
 // allowFrom from the parent channel config at runtime.
 // Validation is enforced at the top-level SignalConfigSchema instead.
-export const SignalAccountSchema = SignalAccountSchemaBase;
 
-export const SignalConfigSchema = SignalAccountSchemaBase.extend({
   accounts: z.record(z.string(), SignalAccountSchema.optional()).optional(),
   defaultAccount: z.string().optional(),
 }).superRefine((value, ctx) => {
@@ -995,7 +967,6 @@ export const SignalConfigSchema = SignalAccountSchemaBase.extend({
     allowFrom: value.allowFrom,
     ctx,
     path: ["allowFrom"],
-    message: 'channels.signal.dmPolicy="open" requires channels.signal.allowFrom to include "*"',
   });
   requireAllowlistAllowFrom({
     policy: value.dmPolicy,
@@ -1003,7 +974,6 @@ export const SignalConfigSchema = SignalAccountSchemaBase.extend({
     ctx,
     path: ["allowFrom"],
     message:
-      'channels.signal.dmPolicy="allowlist" requires channels.signal.allowFrom to contain at least one sender ID',
   });
 
   if (!value.accounts) {
@@ -1021,7 +991,6 @@ export const SignalConfigSchema = SignalAccountSchemaBase.extend({
       ctx,
       path: ["accounts", accountId, "allowFrom"],
       message:
-        'channels.signal.accounts.*.dmPolicy="open" requires channels.signal.accounts.*.allowFrom (or channels.signal.allowFrom) to include "*"',
     });
     requireAllowlistAllowFrom({
       policy: effectivePolicy,
@@ -1029,7 +998,6 @@ export const SignalConfigSchema = SignalAccountSchemaBase.extend({
       ctx,
       path: ["accounts", accountId, "allowFrom"],
       message:
-        'channels.signal.accounts.*.dmPolicy="allowlist" requires channels.signal.accounts.*.allowFrom (or channels.signal.allowFrom) to contain at least one sender ID',
     });
   }
 });
@@ -1168,7 +1136,6 @@ export const IrcConfigSchema = IrcAccountSchemaBase.extend({
   }
 });
 
-export const IMessageAccountSchemaBase = z
   .object({
     name: z.string().optional(),
     capabilities: z.array(z.string()).optional(),
@@ -1224,9 +1191,7 @@ export const IMessageAccountSchemaBase = z
 // Account-level schemas skip allowFrom validation because accounts inherit
 // allowFrom from the parent channel config at runtime.
 // Validation is enforced at the top-level IMessageConfigSchema instead.
-export const IMessageAccountSchema = IMessageAccountSchemaBase;
 
-export const IMessageConfigSchema = IMessageAccountSchemaBase.extend({
   accounts: z.record(z.string(), IMessageAccountSchema.optional()).optional(),
   defaultAccount: z.string().optional(),
 }).superRefine((value, ctx) => {
@@ -1236,7 +1201,6 @@ export const IMessageConfigSchema = IMessageAccountSchemaBase.extend({
     ctx,
     path: ["allowFrom"],
     message:
-      'channels.imessage.dmPolicy="open" requires channels.imessage.allowFrom to include "*"',
   });
   requireAllowlistAllowFrom({
     policy: value.dmPolicy,
@@ -1244,7 +1208,6 @@ export const IMessageConfigSchema = IMessageAccountSchemaBase.extend({
     ctx,
     path: ["allowFrom"],
     message:
-      'channels.imessage.dmPolicy="allowlist" requires channels.imessage.allowFrom to contain at least one sender ID',
   });
 
   if (!value.accounts) {
@@ -1262,7 +1225,6 @@ export const IMessageConfigSchema = IMessageAccountSchemaBase.extend({
       ctx,
       path: ["accounts", accountId, "allowFrom"],
       message:
-        'channels.imessage.accounts.*.dmPolicy="open" requires channels.imessage.accounts.*.allowFrom (or channels.imessage.allowFrom) to include "*"',
     });
     requireAllowlistAllowFrom({
       policy: effectivePolicy,
@@ -1270,7 +1232,6 @@ export const IMessageConfigSchema = IMessageAccountSchemaBase.extend({
       ctx,
       path: ["accounts", accountId, "allowFrom"],
       message:
-        'channels.imessage.accounts.*.dmPolicy="allowlist" requires channels.imessage.accounts.*.allowFrom (or channels.imessage.allowFrom) to contain at least one sender ID',
     });
   }
 });
@@ -1302,7 +1263,6 @@ const BlueBubblesGroupConfigSchema = z
   })
   .strict();
 
-export const BlueBubblesAccountSchemaBase = z
   .object({
     name: z.string().optional(),
     capabilities: z.array(z.string()).optional(),
@@ -1335,9 +1295,7 @@ export const BlueBubblesAccountSchemaBase = z
 // Account-level schemas skip allowFrom validation because accounts inherit
 // allowFrom from the parent channel config at runtime.
 // Validation is enforced at the top-level BlueBubblesConfigSchema instead.
-export const BlueBubblesAccountSchema = BlueBubblesAccountSchemaBase;
 
-export const BlueBubblesConfigSchema = BlueBubblesAccountSchemaBase.extend({
   accounts: z.record(z.string(), BlueBubblesAccountSchema.optional()).optional(),
   defaultAccount: z.string().optional(),
   actions: BlueBubblesActionSchema,
@@ -1348,7 +1306,6 @@ export const BlueBubblesConfigSchema = BlueBubblesAccountSchemaBase.extend({
     ctx,
     path: ["allowFrom"],
     message:
-      'channels.bluebubbles.dmPolicy="open" requires channels.bluebubbles.allowFrom to include "*"',
   });
   requireAllowlistAllowFrom({
     policy: value.dmPolicy,
@@ -1356,7 +1313,6 @@ export const BlueBubblesConfigSchema = BlueBubblesAccountSchemaBase.extend({
     ctx,
     path: ["allowFrom"],
     message:
-      'channels.bluebubbles.dmPolicy="allowlist" requires channels.bluebubbles.allowFrom to contain at least one sender ID',
   });
 
   if (!value.accounts) {
@@ -1374,7 +1330,6 @@ export const BlueBubblesConfigSchema = BlueBubblesAccountSchemaBase.extend({
       ctx,
       path: ["accounts", accountId, "allowFrom"],
       message:
-        'channels.bluebubbles.accounts.*.dmPolicy="open" requires channels.bluebubbles.accounts.*.allowFrom (or channels.bluebubbles.allowFrom) to include "*"',
     });
     requireAllowlistAllowFrom({
       policy: effectivePolicy,
@@ -1382,7 +1337,6 @@ export const BlueBubblesConfigSchema = BlueBubblesAccountSchemaBase.extend({
       ctx,
       path: ["accounts", accountId, "allowFrom"],
       message:
-        'channels.bluebubbles.accounts.*.dmPolicy="allowlist" requires channels.bluebubbles.accounts.*.allowFrom (or channels.bluebubbles.allowFrom) to contain at least one sender ID',
     });
   }
 });

@@ -258,7 +258,6 @@ function collectSlackAssignments(params: {
   if (!isRecord(channels)) {
     return;
   }
-  const slack = channels.slack;
   if (!isRecord(slack)) {
     return;
   }
@@ -291,7 +290,6 @@ function collectSlackAssignments(params: {
         });
   collectSecretInputAssignment({
     value: slack.appToken,
-    path: "channels.slack.appToken",
     expected: "string",
     defaults: params.defaults,
     context: params.context,
@@ -315,7 +313,6 @@ function collectSlackAssignments(params: {
         });
   collectSecretInputAssignment({
     value: slack.signingSecret,
-    path: "channels.slack.signingSecret",
     expected: "string",
     defaults: params.defaults,
     context: params.context,
@@ -334,7 +331,6 @@ function collectSlackAssignments(params: {
     if (hasOwnProperty(account, "appToken")) {
       collectSecretInputAssignment({
         value: account.appToken,
-        path: `channels.slack.accounts.${accountId}.appToken`,
         expected: "string",
         defaults: params.defaults,
         context: params.context,
@@ -350,7 +346,6 @@ function collectSlackAssignments(params: {
     }
     collectSecretInputAssignment({
       value: account.signingSecret,
-      path: `channels.slack.accounts.${accountId}.signingSecret`,
       expected: "string",
       defaults: params.defaults,
       context: params.context,
@@ -372,7 +367,6 @@ function collectDiscordAssignments(params: {
   if (!isRecord(channels)) {
     return;
   }
-  const discord = channels.discord;
   if (!isRecord(discord)) {
     return;
   }
@@ -391,13 +385,11 @@ function collectDiscordAssignments(params: {
     const pluralkit = discord.pluralkit;
     collectSecretInputAssignment({
       value: pluralkit.token,
-      path: "channels.discord.pluralkit.token",
       expected: "string",
       defaults: params.defaults,
       context: params.context,
       active: isBaseFieldActiveForChannelSurface(surface, "pluralkit") && isEnabledFlag(pluralkit),
       inactiveReason:
-        "no enabled Discord surface inherits this top-level PluralKit config or PluralKit is disabled.",
       apply: (value) => {
         pluralkit.token = value;
       },
@@ -406,12 +398,10 @@ function collectDiscordAssignments(params: {
   if (isRecord(discord.voice) && isRecord(discord.voice.tts)) {
     collectTtsApiKeyAssignments({
       tts: discord.voice.tts,
-      pathPrefix: "channels.discord.voice.tts",
       defaults: params.defaults,
       context: params.context,
       active: isBaseFieldActiveForChannelSurface(surface, "voice") && isEnabledFlag(discord.voice),
       inactiveReason:
-        "no enabled Discord surface inherits this top-level voice config or voice is disabled.",
     });
   }
   if (!surface.hasExplicitAccounts) {
@@ -422,7 +412,6 @@ function collectDiscordAssignments(params: {
       const pluralkit = account.pluralkit;
       collectSecretInputAssignment({
         value: pluralkit.token,
-        path: `channels.discord.accounts.${accountId}.pluralkit.token`,
         expected: "string",
         defaults: params.defaults,
         context: params.context,
@@ -440,7 +429,6 @@ function collectDiscordAssignments(params: {
     ) {
       collectTtsApiKeyAssignments({
         tts: account.voice.tts,
-        pathPrefix: `channels.discord.accounts.${accountId}.voice.tts`,
         defaults: params.defaults,
         context: params.context,
         active: enabled && isEnabledFlag(account.voice),
@@ -521,7 +509,6 @@ function collectBlueBubblesAssignments(params: {
   if (!isRecord(channels)) {
     return;
   }
-  const bluebubbles = channels.bluebubbles;
   if (!isRecord(bluebubbles)) {
     return;
   }

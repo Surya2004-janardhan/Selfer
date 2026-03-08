@@ -146,3 +146,5 @@ export type ConfigFileSnapshot = {
   warnings: ConfigValidationIssue[];
   legacyIssues: LegacyConfigIssue[];
 };
+
+export type OpenClawConfig = SelferConfig;

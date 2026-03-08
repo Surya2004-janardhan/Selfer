@@ -1,3 +1,4 @@
+import type { OpenClawConfig } from "../config/types.js";
 import {
   resolveChannelGroupRequireMention,
   resolveChannelGroupToolsPolicy,
@@ -67,13 +68,13 @@ const DOCKS: Record<ChatChannelId, ChannelDock> = {
     },
     outbound: DEFAULT_OUTBOUND_TEXT_CHUNK_LIMIT_4000,
     config: {
-      resolveAllowFrom: ({ cfg, accountId }) =>
+      resolveAllowFrom: ({ cfg, accountId }: { cfg: OpenClawConfig; accountId: string }) =>
         stringifyAllowFrom(inspectTelegramAccount({ cfg, accountId }).config.allowFrom ?? []),
-      formatAllowFrom: ({ allowFrom }) =>
+      formatAllowFrom: ({ allowFrom }: { allowFrom: string[] }) =>
         trimAllowFromEntries(allowFrom)
           .map((entry) => entry.replace(/^(telegram|tg):/i, ""))
           .map((entry) => entry.toLowerCase()),
-      resolveDefaultTo: ({ cfg, accountId }) => {
+      resolveDefaultTo: ({ cfg, accountId }: { cfg: OpenClawConfig; accountId: string }) => {
         const val = inspectTelegramAccount({ cfg, accountId }).config.defaultTo;
         return val != null ? String(val) : undefined;
       },
@@ -83,8 +84,8 @@ const DOCKS: Record<ChatChannelId, ChannelDock> = {
       resolveToolPolicy: resolveTelegramGroupToolPolicy,
     },
     threading: {
-      resolveReplyToMode: ({ cfg }) => cfg.channels?.telegram?.replyToMode ?? "off",
-      buildToolContext: ({ context, hasRepliedRef }) => {
+      resolveReplyToMode: ({ cfg }: { cfg: OpenClawConfig }) => cfg.channels?.telegram?.replyToMode ?? "off",
+      buildToolContext: ({ context, hasRepliedRef }: { context: any; hasRepliedRef: any }) => {
         // Telegram auto-threading should only use actual thread/topic IDs.
         // ReplyToId is a message ID and causes invalid message_thread_id in DMs.
         const threadId = context.MessageThreadId;

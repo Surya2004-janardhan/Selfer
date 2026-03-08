@@ -28,7 +28,7 @@ import { isSystemdUserServiceAvailable } from "../daemon/systemd.js";
 import { ensureControlUiAssetsBuilt } from "../infra/control-ui-assets.js";
 import type { RuntimeEnv } from "../runtime.js";
 import { restoreTerminalState } from "../terminal/restore.js";
-import { runTui } from "../tui/tui.js";
+// import { runTui } from "../tui/tui.js";
 import { resolveUserPath } from "../utils.js";
 import { setupOnboardingShellCompletion } from "./onboarding.completion.js";
 import { resolveOnboardingSecretInputString } from "./onboarding.secret-input.js";
@@ -333,6 +333,7 @@ export async function finalizeOnboardingWizard(
   let launchedTui = false;
 
   if (!opts.skipUi && gatewayProbe.ok) {
+    /*
     if (hasBootstrap) {
       await prompter.note(
         [
@@ -344,6 +345,7 @@ export async function finalizeOnboardingWizard(
         "Start TUI (best option!)",
       );
     }
+    */
 
     await prompter.note(
       [
@@ -361,25 +363,26 @@ export async function finalizeOnboardingWizard(
     hatchChoice = await prompter.select({
       message: "How do you want to hatch your bot?",
       options: [
-        { value: "tui", label: "Hatch in TUI (recommended)" },
+        // { value: "tui", label: "Hatch in TUI (recommended)" },
         { value: "web", label: "Open the Web UI" },
         { value: "later", label: "Do this later" },
       ],
-      initialValue: "tui",
+      initialValue: "web",
     });
 
-    if (hatchChoice === "tui") {
-      restoreTerminalState("pre-onboarding tui", { resumeStdinIfPaused: true });
-      await runTui({
-        url: links.wsUrl,
-        token: settings.authMode === "token" ? settings.gatewayToken : undefined,
-        password: settings.authMode === "password" ? resolvedGatewayPassword : "",
-        // Safety: onboarding TUI should not auto-deliver to lastProvider/lastTo.
-        deliver: false,
-        message: hasBootstrap ? "Wake up, my friend!" : undefined,
-      });
-      launchedTui = true;
-    } else if (hatchChoice === "web") {
+      /*
+      if (hatchChoice === "tui") {
+        restoreTerminalState("pre-onboarding tui", { resumeStdinIfPaused: true });
+        await runTui({
+          url: links.wsUrl,
+          token: settings.authMode === "token" ? settings.gatewayToken : undefined,
+          password: settings.authMode === "password" ? resolvedGatewayPassword : "",
+          // Safety: onboarding TUI should not auto-deliver to lastProvider/lastTo.
+          deliver: false,
+          message: hasBootstrap ? "Wake up, my friend!" : undefined,
+        });
+        launchedTui = true;
+      } else */ if (hatchChoice === "web") {
       const browserSupport = await detectBrowserOpenSupport();
       if (browserSupport.ok) {
         controlUiOpened = await openUrl(authedUrl);

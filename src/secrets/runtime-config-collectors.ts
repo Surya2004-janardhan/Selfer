@@ -1,10 +1,10 @@
-import type { OpenClawConfig } from "../config/config.js";
-import { collectChannelConfigAssignments } from "./runtime-config-collectors-channels.js";
+import type { SelferConfig } from "../config/config.js";
+import { collectChannelSecretAssignments } from "./runtime-config-collectors-channels.js";
 import { collectCoreConfigAssignments } from "./runtime-config-collectors-core.js";
 import type { ResolverContext } from "./runtime-shared.js";
 
 export function collectConfigAssignments(params: {
-  config: OpenClawConfig;
+  config: SelferConfig;
   context: ResolverContext;
 }): void {
   const defaults = params.context.sourceConfig.secrets?.defaults;
@@ -15,7 +15,7 @@ export function collectConfigAssignments(params: {
     context: params.context,
   });
 
-  collectChannelConfigAssignments({
+  collectChannelSecretAssignments({
     config: params.config,
     defaults,
     context: params.context,

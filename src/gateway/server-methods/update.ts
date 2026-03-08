@@ -1,6 +1,6 @@
 import { loadConfig } from "../../config/config.js";
 import { extractDeliveryInfo } from "../../config/sessions.js";
-import { resolveSelferPackageRoot } from "../../infra/Selfer-root.js";
+import { resolveSelferPackageRoot } from "../../infra/selfer-root.js";
 import {
   formatDoctorNonInteractiveHint,
   type RestartSentinelPayload,

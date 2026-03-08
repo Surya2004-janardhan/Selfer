@@ -4,7 +4,7 @@ import {
   resolveControlUiDistIndexHealth,
   resolveControlUiDistIndexPathForRoot,
 } from "../infra/control-ui-assets.js";
-import { resolveSelferPackageRoot } from "../infra/Selfer-root.js";
+import { resolveSelferPackageRoot } from "../infra/selfer-root.js";
 import { runCommandWithTimeout } from "../process/exec.js";
 import type { RuntimeEnv } from "../runtime.js";
 import { note } from "../terminal/note.js";

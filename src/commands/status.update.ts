@@ -1,5 +1,5 @@
 import { formatCliCommand } from "../cli/command-format.js";
-import { resolveSelferPackageRoot } from "../infra/Selfer-root.js";
+import { resolveSelferPackageRoot } from "../infra/selfer-root.js";
 import {
   checkUpdateStatus,
   compareSemverStrings,

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { resolveSelferPackageRootSync } from "../../infra/Selfer-root.js";
+import { resolveSelferPackageRootSync } from "../../infra/selfer-root.js";
 
 function looksLikeSkillsDir(dir: string): boolean {
   try {

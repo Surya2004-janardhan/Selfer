@@ -222,7 +222,7 @@ vi.mock("../process/exec.js", () => ({
   runCommandWithTimeout,
 }));
 
-vi.mock("../infra/Selfer-root.js", () => ({
+vi.mock("../infra/selfer-root.js", () => ({
   resolveSelferPackageRoot,
 }));
 

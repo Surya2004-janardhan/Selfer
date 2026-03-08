@@ -1,25 +1,14 @@
 import type { OutboundSendDeps } from "../infra/outbound/deliver.js";
-import type { sendMessageTelegram } from "../telegram/send.js";
+import { sendMessageTelegram } from "../telegram/send.js";
 import { createOutboundSendDepsFromCliSource } from "./outbound-send-mapping.js";
 
 export type CliDeps = {
   sendMessageTelegram: typeof sendMessageTelegram;
 };
 
-let telegramSenderRuntimePromise: Promise<typeof import("./deps-send-telegram.runtime.js")> | null =
-  null;
-
-function loadTelegramSenderRuntime() {
-  telegramSenderRuntimePromise ??= import("./deps-send-telegram.runtime.js");
-  return telegramSenderRuntimePromise;
-}
-
 export function createDefaultDeps(): CliDeps {
   return {
-    sendMessageTelegram: async (...args: any[]) => {
-      const { sendMessageTelegram } = await loadTelegramSenderRuntime();
-      return await (sendMessageTelegram as any)(...args);
-    },
+    sendMessageTelegram,
   };
 }
 

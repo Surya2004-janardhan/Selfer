@@ -23,8 +23,8 @@ import type {
   TtsModelOverrideConfig,
 } from "../config/types.tts.js";
 import { logVerbose } from "../globals.js";
-import { resolvePreferredOpenClawTmpDir } from "../infra/tmp-openclaw-dir.js";
-import { stripMarkdown } from "../line/markdown-to-line.js";
+import { resolvePreferredSelferTmpDir } from "../infra/tmp-openclaw-dir.js";
+import { stripMarkdown } from "../utils/markdown-strip.js";
 import { isVoiceCompatibleAudio } from "../media/audio.js";
 import { CONFIG_DIR, resolveUserPath } from "../utils.js";
 import {
@@ -589,7 +589,7 @@ export async function textToSpeech(params: {
           continue;
         }
 
-        const tempRoot = resolvePreferredOpenClawTmpDir();
+        const tempRoot = resolvePreferredSelferTmpDir();
         mkdirSync(tempRoot, { recursive: true, mode: 0o700 });
         const tempDir = mkdtempSync(path.join(tempRoot, "tts-"));
         let edgeOutputFormat = resolveEdgeOutputFormat(config);
@@ -699,7 +699,7 @@ export async function textToSpeech(params: {
 
       const latencyMs = Date.now() - providerStart;
 
-      const tempRoot = resolvePreferredOpenClawTmpDir();
+      const tempRoot = resolvePreferredSelferTmpDir();
       mkdirSync(tempRoot, { recursive: true, mode: 0o700 });
       const tempDir = mkdtempSync(path.join(tempRoot, "tts-"));
       const audioPath = path.join(tempDir, `voice-${Date.now()}${output.extension}`);

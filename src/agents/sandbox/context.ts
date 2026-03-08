@@ -1,7 +1,5 @@
 import fs from "node:fs/promises";
-import { DEFAULT_BROWSER_EVALUATE_ENABLED } from "../../browser/constants.js";
-import { ensureBrowserControlAuth, resolveBrowserControlAuth } from "../../browser/control-auth.js";
-import type { OpenClawConfig } from "../../config/config.js";
+import type { SelferConfig } from "../../config/config.js";
 import { loadConfig } from "../../config/config.js";
 import { defaultRuntime } from "../../runtime.js";
 import { resolveUserPath } from "../../utils.js";
@@ -20,7 +18,7 @@ import { ensureSandboxWorkspace } from "./workspace.js";
 async function ensureSandboxWorkspaceLayout(params: {
   cfg: ReturnType<typeof resolveSandboxConfigForAgent>;
   rawSessionKey: string;
-  config?: OpenClawConfig;
+  config?: SelferConfig;
   workspaceDir?: string;
 }): Promise<{
   agentWorkspaceDir: string;
@@ -87,7 +85,7 @@ export async function resolveSandboxDockerUser(params: {
   }
 }
 
-function resolveSandboxSession(params: { config?: OpenClawConfig; sessionKey?: string }) {
+function resolveSandboxSession(params: { config?: SelferConfig; sessionKey?: string }) {
   const rawSessionKey = params.sessionKey?.trim();
   if (!rawSessionKey) {
     return null;
@@ -106,7 +104,7 @@ function resolveSandboxSession(params: { config?: OpenClawConfig; sessionKey?: s
 }
 
 export async function resolveSandboxContext(params: {
-  config?: OpenClawConfig;
+  config?: SelferConfig;
   sessionKey?: string;
   workspaceDir?: string;
 }): Promise<SandboxContext | null> {
@@ -138,34 +136,6 @@ export async function resolveSandboxContext(params: {
     cfg: resolvedCfg,
   });
 
-  const evaluateEnabled =
-    params.config?.browser?.evaluateEnabled ?? DEFAULT_BROWSER_EVALUATE_ENABLED;
-
-  const bridgeAuth = cfg.browser.enabled
-    ? await (async () => {
-        // Sandbox browser bridge server runs on a loopback TCP port; always wire up
-        // the same auth that loopback browser clients will send (token/password).
-        const cfgForAuth = params.config ?? loadConfig();
-        let browserAuth = resolveBrowserControlAuth(cfgForAuth);
-        try {
-          const ensured = await ensureBrowserControlAuth({ cfg: cfgForAuth });
-          browserAuth = ensured.auth;
-        } catch (error) {
-          const message = error instanceof Error ? error.message : JSON.stringify(error);
-          defaultRuntime.error?.(`Sandbox browser auth ensure failed: ${message}`);
-        }
-        return browserAuth;
-      })()
-    : undefined;
-  const browser = await ensureSandboxBrowser({
-    scopeKey,
-    workspaceDir,
-    agentWorkspaceDir,
-    cfg: resolvedCfg,
-    evaluateEnabled,
-    bridgeAuth,
-  });
-
   const sandboxContext: SandboxContext = {
     enabled: true,
     sessionKey: rawSessionKey,
@@ -177,7 +147,7 @@ export async function resolveSandboxContext(params: {
     docker: resolvedCfg.docker,
     tools: resolvedCfg.tools,
     browserAllowHostControl: resolvedCfg.browser.allowHostControl,
-    browser: browser ?? undefined,
+    browser: undefined,
   };
 
   sandboxContext.fsBridge = createSandboxFsBridge({ sandbox: sandboxContext });
@@ -186,7 +156,7 @@ export async function resolveSandboxContext(params: {
 }
 
 export async function ensureSandboxWorkspaceForSession(params: {
-  config?: OpenClawConfig;
+  config?: SelferConfig;
   sessionKey?: string;
   workspaceDir?: string;
 }): Promise<SandboxWorkspaceInfo | null> {

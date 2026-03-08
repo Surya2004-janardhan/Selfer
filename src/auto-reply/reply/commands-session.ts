@@ -1,19 +1,10 @@
 import { parseDurationMs } from "../../cli/parse-duration.js";
 import { isRestartEnabled } from "../../config/commands.js";
-import {
-  formatThreadBindingDurationLabel,
-  getThreadBindingManager,
-  resolveThreadBindingIdleTimeoutMs,
-  resolveThreadBindingInactivityExpiresAt,
-  resolveThreadBindingMaxAgeExpiresAt,
-  resolveThreadBindingMaxAgeMs,
-  setThreadBindingIdleTimeoutBySessionKey,
-  setThreadBindingMaxAgeBySessionKey,
-} from "../../discord/monitor/thread-bindings.js";
+
 import { logVerbose } from "../../globals.js";
 import { getSessionBindingService } from "../../infra/outbound/session-binding-service.js";
 import type { SessionBindingRecord } from "../../infra/outbound/session-binding-service.js";
-import { scheduleGatewaySigusr1Restart, triggerOpenClawRestart } from "../../infra/restart.js";
+import { scheduleGatewaySigusr1Restart, triggerSelferRestart } from "../../infra/restart.js";
 import { loadCostUsageSummary, loadSessionCostSummary } from "../../infra/session-cost-usage.js";
 import {
   setTelegramThreadBindingIdleTimeoutBySessionKey,
@@ -23,7 +14,7 @@ import { formatTokenCount, formatUsd } from "../../utils/usage-format.js";
 import { parseActivationCommand } from "../group-activation.js";
 import { parseSendPolicyCommand } from "../send-policy.js";
 import { normalizeUsageDisplay, resolveResponseUsageMode } from "../thinking.js";
-import { isDiscordSurface, isTelegramSurface, resolveChannelAccountId } from "./channel-context.js";
+import { isTelegramSurface, resolveChannelAccountId } from "./channel-context.js";
 import { handleAbortTrigger, handleStopCommand } from "./commands-session-abort.js";
 import { persistSessionEntry } from "./commands-session-store.js";
 import type { CommandHandler } from "./commands-types.js";
@@ -316,56 +307,30 @@ export const handleSessionCommand: CommandHandler = async (params, allowTextComm
     };
   }
 
-  const onDiscord = isDiscordSurface(params);
   const onTelegram = isTelegramSurface(params);
-  if (!onDiscord && !onTelegram) {
+  if (!onTelegram) {
     return {
       shouldContinue: false,
       reply: {
-        text: "⚠️ /session idle and /session max-age are currently available for Discord and Telegram bound sessions.",
+        text: "⚠️ /session idle and /session max-age are currently available for Telegram bound sessions.",
       },
     };
   }
 
   const accountId = resolveChannelAccountId(params);
-  const sessionBindingService = getSessionBindingService();
   const threadId =
     params.ctx.MessageThreadId != null ? String(params.ctx.MessageThreadId).trim() : "";
-  const telegramConversationId = onTelegram ? resolveTelegramConversationId(params) : undefined;
+  const telegramConversationId = resolveTelegramConversationId(params);
 
-  const discordManager = onDiscord ? getThreadBindingManager(accountId) : null;
-  if (onDiscord && !discordManager) {
-    return {
-      shouldContinue: false,
-      reply: { text: "⚠️ Discord thread bindings are unavailable for this account." },
-    };
-  }
+  const telegramBinding = telegramConversationId
+    ? getSessionBindingService().resolveByConversation({
+        channel: "telegram",
+        accountId,
+        conversationId: telegramConversationId,
+      })
+    : null;
 
-  const discordBinding =
-    onDiscord && threadId ? discordManager?.getByThreadId(threadId) : undefined;
-  const telegramBinding =
-    onTelegram && telegramConversationId
-      ? sessionBindingService.resolveByConversation({
-          channel: "telegram",
-          accountId,
-          conversationId: telegramConversationId,
-        })
-      : null;
-  if (onDiscord && !discordBinding) {
-    if (onDiscord && !threadId) {
-      return {
-        shouldContinue: false,
-        reply: {
-          text: "⚠️ /session idle and /session max-age must be run inside a focused Discord thread.",
-        },
-      };
-    }
-    return {
-      shouldContinue: false,
-      reply: { text: "ℹ️ This thread is not currently focused." },
-    };
-  }
-  if (onTelegram && !telegramBinding) {
+  if (!telegramBinding) {
     if (!telegramConversationId) {
       return {
         shouldContinue: false,
@@ -380,34 +345,18 @@ export const handleSessionCommand: CommandHandler = async (params, allowTextComm
     };
   }
 
-  const idleTimeoutMs = onDiscord
-    ? resolveThreadBindingIdleTimeoutMs({
-        record: discordBinding!,
-        defaultIdleTimeoutMs: discordManager!.getIdleTimeoutMs(),
-      })
-    : resolveTelegramBindingDurationMs(telegramBinding!, "idleTimeoutMs", 24 * 60 * 60 * 1000);
-  const idleExpiresAt = onDiscord
-    ? resolveThreadBindingInactivityExpiresAt({
-        record: discordBinding!,
-        defaultIdleTimeoutMs: discordManager!.getIdleTimeoutMs(),
-      })
-    : idleTimeoutMs > 0
+  const idleTimeoutMs = resolveTelegramBindingDurationMs(
+    telegramBinding!,
+    "idleTimeoutMs",
+    24 * 60 * 60 * 1000,
+  );
+  const idleExpiresAt =
+    idleTimeoutMs > 0
       ? resolveTelegramBindingLastActivityAt(telegramBinding!) + idleTimeoutMs
       : undefined;
-  const maxAgeMs = onDiscord
-    ? resolveThreadBindingMaxAgeMs({
-        record: discordBinding!,
-        defaultMaxAgeMs: discordManager!.getMaxAgeMs(),
-      })
-    : resolveTelegramBindingDurationMs(telegramBinding!, "maxAgeMs", 0);
-  const maxAgeExpiresAt = onDiscord
-    ? resolveThreadBindingMaxAgeExpiresAt({
-        record: discordBinding!,
-        defaultMaxAgeMs: discordManager!.getMaxAgeMs(),
-      })
-    : maxAgeMs > 0
-      ? telegramBinding!.boundAt + maxAgeMs
-      : undefined;
+  const maxAgeMs = resolveTelegramBindingDurationMs(telegramBinding!, "maxAgeMs", 0);
+  const maxAgeExpiresAt =
+    maxAgeMs > 0 ? telegramBinding!.boundAt + maxAgeMs : undefined;
 
   const durationArgRaw = tokens.slice(1).join("");
   if (!durationArgRaw) {
@@ -420,7 +369,7 @@ export const handleSessionCommand: CommandHandler = async (params, allowTextComm
         return {
           shouldContinue: false,
           reply: {
-            text: `ℹ️ Idle timeout active (${formatThreadBindingDurationLabel(idleTimeoutMs)}, next auto-unfocus at ${formatSessionExpiry(idleExpiresAt)}).`,
+            text: `ℹ️ Idle timeout active (next auto-unfocus at ${formatSessionExpiry(idleExpiresAt)}).`,
           },
         };
       }
@@ -438,7 +387,7 @@ export const handleSessionCommand: CommandHandler = async (params, allowTextComm
       return {
         shouldContinue: false,
         reply: {
-          text: `ℹ️ Max age active (${formatThreadBindingDurationLabel(maxAgeMs)}, hard auto-unfocus at ${formatSessionExpiry(maxAgeExpiresAt)}).`,
+          text: `ℹ️ Max age active (hard auto-unfocus at ${formatSessionExpiry(maxAgeExpiresAt)}).`,
         },
       };
     }
@@ -449,16 +398,12 @@ export const handleSessionCommand: CommandHandler = async (params, allowTextComm
   }
 
   const senderId = params.command.senderId?.trim() || "";
-  const boundBy = onDiscord
-    ? discordBinding!.boundBy
-    : resolveTelegramBindingBoundBy(telegramBinding!);
+  const boundBy = resolveTelegramBindingBoundBy(telegramBinding!);
   if (boundBy && boundBy !== "system" && senderId && senderId !== boundBy) {
     return {
       shouldContinue: false,
       reply: {
-        text: onDiscord
-          ? `⚠️ Only ${boundBy} can update session lifecycle settings for this thread.`
-          : `⚠️ Only ${boundBy} can update session lifecycle settings for this conversation.`,
+        text: `⚠️ Only ${boundBy} can update session lifecycle settings for this conversation.`,
       },
     };
   }
@@ -473,21 +418,8 @@ export const handleSessionCommand: CommandHandler = async (params, allowTextComm
     };
   }
 
-  const updatedBindings = (() => {
-    if (onDiscord) {
-      return action === SESSION_ACTION_IDLE
-        ? setThreadBindingIdleTimeoutBySessionKey({
-            targetSessionKey: discordBinding!.targetSessionKey,
-            accountId,
-            idleTimeoutMs: durationMs,
-          })
-        : setThreadBindingMaxAgeBySessionKey({
-            targetSessionKey: discordBinding!.targetSessionKey,
-            accountId,
-            maxAgeMs: durationMs,
-          });
-    }
-    return action === SESSION_ACTION_IDLE
+  const updatedBindings =
+    action === SESSION_ACTION_IDLE
       ? setTelegramThreadBindingIdleTimeoutBySessionKey({
           targetSessionKey: telegramBinding!.targetSessionKey,
           accountId,
@@ -498,7 +430,7 @@ export const handleSessionCommand: CommandHandler = async (params, allowTextComm
           accountId,
           maxAgeMs: durationMs,
         });
-  })();
+
   if (updatedBindings.length === 0) {
     return {
       shouldContinue: false,
@@ -537,8 +469,8 @@ export const handleSessionCommand: CommandHandler = async (params, allowTextComm
     reply: {
       text:
         action === SESSION_ACTION_IDLE
-          ? `✅ Idle timeout set to ${formatThreadBindingDurationLabel(durationMs)} for ${updatedBindings.length} binding${updatedBindings.length === 1 ? "" : "s"} (next auto-unfocus at ${expiryLabel}).`
-          : `✅ Max age set to ${formatThreadBindingDurationLabel(durationMs)} for ${updatedBindings.length} binding${updatedBindings.length === 1 ? "" : "s"} (hard auto-unfocus at ${expiryLabel}).`,
+          ? `✅ Idle timeout set for ${updatedBindings.length} binding${updatedBindings.length === 1 ? "" : "s"} (next auto-unfocus at ${expiryLabel}).`
+          : `✅ Max age set for ${updatedBindings.length} binding${updatedBindings.length === 1 ? "" : "s"} (hard auto-unfocus at ${expiryLabel}).`,
     },
   };
 };
@@ -569,11 +501,11 @@ export const handleRestartCommand: CommandHandler = async (params, allowTextComm
     return {
       shouldContinue: false,
       reply: {
-        text: "⚙️ Restarting OpenClaw in-process (SIGUSR1); back in a few seconds.",
+        text: "⚙️ Restarting Selfer in-process (SIGUSR1); back in a few seconds.",
       },
     };
   }
-  const restartMethod = triggerOpenClawRestart();
+  const restartMethod = triggerSelferRestart();
   if (!restartMethod.ok) {
     const detail = restartMethod.detail ? ` Details: ${restartMethod.detail}` : "";
     return {
@@ -586,7 +518,7 @@ export const handleRestartCommand: CommandHandler = async (params, allowTextComm
   return {
     shouldContinue: false,
     reply: {
-      text: `⚙️ Restarting OpenClaw via ${restartMethod.method}; give me a few seconds to come back online.`,
+      text: `⚙️ Restarting Selfer via ${restartMethod.method}; give me a few seconds to come back online.`,
     },
   };
 };

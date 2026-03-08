@@ -2,8 +2,11 @@ import { type Context, complete } from "@mariozechner/pi-ai";
 import { Type } from "@sinclair/typebox";
 import type { OpenClawConfig } from "../../config/config.js";
 import { resolveUserPath } from "../../utils.js";
-import { loadWebMedia } from "../../web/media.js";
 import { minimaxUnderstandImage } from "../minimax-vlm.js";
+
+async function loadWebMedia(urlOrPath: string, options: any): Promise<any> {
+    throw new Error(`Media loading from ${urlOrPath} is not supported in this version of Selfer.`);
+}
 import {
   coerceImageAssistantText,
   coerceImageModelConfig,

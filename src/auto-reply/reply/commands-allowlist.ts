@@ -9,9 +9,6 @@ import {
   validateConfigObjectWithPlugins,
   writeConfigFile,
 } from "../../config/config.js";
-import { resolveDiscordAccount } from "../../discord/accounts.js";
-import { resolveDiscordUserAllowlist } from "../../discord/resolve-users.js";
-import { resolveIMessageAccount } from "../../imessage/accounts.js";
 import { isBlockedObjectKey } from "../../infra/prototype-keys.js";
 import {
   addChannelAllowFromStoreEntry,
@@ -23,11 +20,7 @@ import {
   normalizeAccountId,
   normalizeOptionalAccountId,
 } from "../../routing/session-key.js";
-import { resolveSignalAccount } from "../../signal/accounts.js";
-import { resolveSlackAccount } from "../../slack/accounts.js";
-import { resolveSlackUserAllowlist } from "../../slack/resolve-users.js";
 import { resolveTelegramAccount } from "../../telegram/accounts.js";
-import { resolveWhatsAppAccount } from "../../web/accounts.js";
 import { rejectUnauthorizedCommand, requireCommandFlagEnabled } from "./command-gates.js";
 import type { CommandHandler } from "./commands-types.js";
 
@@ -284,31 +277,10 @@ function resolveChannelAllowFromPaths(
   channelId: ChannelId,
   scope: AllowlistScope,
 ): string[] | null {
-  const supportsGroupAllowlist =
-    channelId === "telegram" ||
-    channelId === "whatsapp" ||
-    channelId === "signal" ||
-    channelId === "imessage";
   if (scope === "all") {
     return null;
   }
-  if (scope === "dm") {
-    if (channelId === "slack" || channelId === "discord") {
-      // Canonical DM allowlist location for Slack/Discord. Legacy: dm.allowFrom.
-      return ["allowFrom"];
-    }
-    if (supportsGroupAllowlist) {
-      return ["allowFrom"];
-    }
-    return null;
-  }
-  if (scope === "group") {
-    if (supportsGroupAllowlist) {
-      return ["groupAllowFrom"];
-    }
-    return null;
-  }
-  return null;
+  return ["allowFrom"];
 }
 
 function mapResolvedAllowlistNames(entries: ResolvedAllowlistName[]): Map<string, string> {
@@ -321,33 +293,7 @@ function mapResolvedAllowlistNames(entries: ResolvedAllowlistName[]): Map<string
   return map;
 }
 
-async function resolveSlackNames(params: {
-  cfg: OpenClawConfig;
-  accountId?: string | null;
-  entries: string[];
-}) {
-  const account = resolveSlackAccount({ cfg: params.cfg, accountId: params.accountId });
-  const token = account.userToken || account.botToken?.trim();
-  if (!token) {
-    return new Map<string, string>();
-  }
-  const resolved = await resolveSlackUserAllowlist({ token, entries: params.entries });
-  return mapResolvedAllowlistNames(resolved);
-}
 
-async function resolveDiscordNames(params: {
-  cfg: OpenClawConfig;
-  accountId?: string | null;
-  entries: string[];
-}) {
-  const account = resolveDiscordAccount({ cfg: params.cfg, accountId: params.accountId });
-  const token = account.token?.trim();
-  if (!token) {
-    return new Map<string, string>();
-  }
-  const resolved = await resolveDiscordUserAllowlist({ token, entries: params.entries });
-  return mapResolvedAllowlistNames(resolved);
-}
 
 export const handleAllowlistCommand: CommandHandler = async (params, allowTextCommands) => {
   if (!allowTextCommands) {
@@ -416,50 +362,6 @@ export const handleAllowlistCommand: CommandHandler = async (params, allowTextCo
           }
         }
       }
-    } else if (channelId === "whatsapp") {
-      const account = resolveWhatsAppAccount({ cfg: params.cfg, accountId });
-      dmAllowFrom = (account.allowFrom ?? []).map(String);
-      groupAllowFrom = (account.groupAllowFrom ?? []).map(String);
-      dmPolicy = account.dmPolicy;
-      groupPolicy = account.groupPolicy;
-    } else if (channelId === "signal") {
-      const account = resolveSignalAccount({ cfg: params.cfg, accountId });
-      ({ dmAllowFrom, groupAllowFrom, dmPolicy, groupPolicy } = extractConfigAllowlist(account));
-    } else if (channelId === "imessage") {
-      const account = resolveIMessageAccount({ cfg: params.cfg, accountId });
-      ({ dmAllowFrom, groupAllowFrom, dmPolicy, groupPolicy } = extractConfigAllowlist(account));
-    } else if (channelId === "slack") {
-      const account = resolveSlackAccount({ cfg: params.cfg, accountId });
-      dmAllowFrom = (account.config.allowFrom ?? account.config.dm?.allowFrom ?? []).map(String);
-      groupPolicy = account.groupPolicy;
-      const channels = account.channels ?? {};
-      groupOverrides = Object.entries(channels)
-        .map(([key, value]) => {
-          const entries = (value?.users ?? []).map(String).filter(Boolean);
-          return entries.length > 0 ? { label: key, entries } : null;
-        })
-        .filter(Boolean) as Array<{ label: string; entries: string[] }>;
-    } else if (channelId === "discord") {
-      const account = resolveDiscordAccount({ cfg: params.cfg, accountId });
-      dmAllowFrom = (account.config.allowFrom ?? account.config.dm?.allowFrom ?? []).map(String);
-      groupPolicy = account.config.groupPolicy;
-      const guilds = account.config.guilds ?? {};
-      for (const [guildKey, guildCfg] of Object.entries(guilds)) {
-        const entries = (guildCfg?.users ?? []).map(String).filter(Boolean);
-        if (entries.length > 0) {
-          groupOverrides.push({ label: `guild ${guildKey}`, entries });
-        }
-        const channels = guildCfg?.channels ?? {};
-        for (const [channelKey, channelCfg] of Object.entries(channels)) {
-          const channelEntries = (channelCfg?.users ?? []).map(String).filter(Boolean);
-          if (channelEntries.length > 0) {
-            groupOverrides.push({
-              label: `guild ${guildKey} / channel ${channelKey}`,
-              entries: channelEntries,
-            });
-          }
-        }
-      }
     }
 
     const dmDisplay = normalizeAllowFrom({
@@ -481,26 +383,8 @@ export const handleAllowlistCommand: CommandHandler = async (params, allowTextCo
       accountId,
       values: groupOverrideEntries,
     });
-    const resolvedDm =
-      parsed.resolve && dmDisplay.length > 0 && channelId === "slack"
-        ? await resolveSlackNames({ cfg: params.cfg, accountId, entries: dmDisplay })
-        : parsed.resolve && dmDisplay.length > 0 && channelId === "discord"
-          ? await resolveDiscordNames({ cfg: params.cfg, accountId, entries: dmDisplay })
-          : undefined;
-    const resolvedGroup =
-      parsed.resolve && groupOverrideDisplay.length > 0 && channelId === "slack"
-        ? await resolveSlackNames({
-            cfg: params.cfg,
-            accountId,
-            entries: groupOverrideDisplay,
-          })
-        : parsed.resolve && groupOverrideDisplay.length > 0 && channelId === "discord"
-          ? await resolveDiscordNames({
-              cfg: params.cfg,
-              accountId,
-              entries: groupOverrideDisplay,
-            })
-          : undefined;
+    const resolvedDm = undefined;
+    const resolvedGroup = undefined;
 
     const lines: string[] = ["🧾 Allowlist"];
     lines.push(`Channel: ${channelId}${accountId ? ` (account ${accountId})` : ""}`);
@@ -596,11 +480,7 @@ export const handleAllowlistCommand: CommandHandler = async (params, allowTextCo
       accountId: normalizedAccountId,
     } = resolveAccountTarget(parsedConfig, channelId, accountId);
     const existing: string[] = [];
-    const existingPaths =
-      scope === "dm" && (channelId === "slack" || channelId === "discord")
-        ? // Read both while legacy alias may still exist; write canonical below.
-          [allowlistPath, ["dm", "allowFrom"]]
-        : [allowlistPath];
+    const existingPaths = [allowlistPath];
     for (const path of existingPaths) {
       const existingRaw = getNestedValue(target, path);
       if (!Array.isArray(existingRaw)) {
@@ -670,10 +550,6 @@ export const handleAllowlistCommand: CommandHandler = async (params, allowTextCo
         deleteNestedValue(target, allowlistPath);
       } else {
         setNestedValue(target, allowlistPath, next);
-      }
-      if (scope === "dm" && (channelId === "slack" || channelId === "discord")) {
-        // Remove legacy DM allowlist alias to prevent drift.
-        deleteNestedValue(target, ["dm", "allowFrom"]);
       }
     }
 

@@ -49,7 +49,8 @@ export class Router {
         let finalResult = "";
         for (let i = 0; i < plan.length; i++) {
             const step = plan[i];
-            CLIGui.updateLoader(`Step ${i + 1}/${plan.length}: ${step.agent} -> ${step.task}`);
+            const displayTask = step.task.length > 50 ? step.task.substring(0, 47) + '...' : step.task;
+            CLIGui.updateLoader(`Step ${i + 1}/${plan.length}: ${step.agent} -> ${displayTask}`);
 
             const agent = this.agents.get(step.agent);
             if (agent) {

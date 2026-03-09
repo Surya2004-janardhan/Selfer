@@ -40,12 +40,17 @@ export class CLIGui {
     }
 
     static logAgentAction(agentName: string, action: string) {
-        // Show in grey as per user request
+        const isSpinning = this.spinner.isSpinning;
+        if (isSpinning) this.spinner.stop();
         console.log(chalk.gray(`[${agentName}] ${action}`));
+        if (isSpinning) this.spinner.start();
     }
 
     static logReasoning(reasoning: string) {
+        const isSpinning = this.spinner.isSpinning;
+        if (isSpinning) this.spinner.stop();
         console.log(chalk.gray(`>> ${reasoning}`));
+        if (isSpinning) this.spinner.start();
     }
 
     static async askPermission(message: string): Promise<boolean> {

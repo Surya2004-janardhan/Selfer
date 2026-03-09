@@ -24,16 +24,25 @@ export class PlanAgent extends BaseAgent {
         const response = await this.callLLM(systemPrompt, task);
 
         try {
-            // Robust JSON detection
-            const jsonStart = response.indexOf('[');
-            const jsonEnd = response.lastIndexOf(']') + 1;
-            if (jsonStart !== -1 && jsonEnd !== -1) {
-                const jsonContent = response.substring(jsonStart, jsonEnd);
-                return JSON.parse(jsonContent);
+            // Find the first '[' and last ']'
+            const start = response.indexOf('[');
+            const end = response.lastIndexOf(']') + 1;
+
+            if (start !== -1 && end !== -1 && end > start) {
+                const jsonStr = response.substring(start, end);
+                return JSON.parse(jsonStr);
             }
-            throw new Error("No JSON array found in response");
+
+            throw new Error("No JSON array found");
         } catch (error) {
-            CLIGui.warning("PlanAgent: Falling back to direct CLI response.");
+            CLIGui.warning("PlanAgent: JSON parsing failed. Attempting to recover...");
+            // Try to find any array-like structure via regex
+            const match = response.match(/\[\s*\{[\s\S]*\}\s*\]/);
+            if (match) {
+                try {
+                    return JSON.parse(match[0]);
+                } catch (e) { /* ignore */ }
+            }
             return [{ agent: "CLIAgent", task: response }];
         }
     }

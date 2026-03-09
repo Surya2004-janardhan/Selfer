@@ -8,19 +8,19 @@ export class SkillManager {
     private static DEFAULT_SKILLS = [
         {
             name: 'master.md',
-            content: '# Master Skill\nAs the Master Agent, you are the conductor of the Selfer framework...'
+            content: '# Master Orchestration\n\n## Strategic Oversight\n- **Context Preservation**: Always maintain the "Why" behind a user\'s request.\n- **Agent Orchestration**: Delegate to the most efficient agent for the specific sub-task.\n- **Decision Logic**: Iterative refinement and strict ROI on task priority.'
         },
         {
             name: 'git.md',
-            content: '# Git & Version Control\nExpertise in managing project history and collaboration...'
+            content: '# Git & Version Control Mastery\n\n## Core Principles\n- **Atomic Commits**: Single, logical changes.\n- **Branching**: Conventional branching (main, develop, feature/*).\n- **Conflicts**: Rebase-first approach for clean linear history.'
         },
         {
             name: 'backend.md',
-            content: '# Backend Architecture\nDomain knowledge for server-side development...'
+            content: '# Backend Architecture & Systems\n\n## Design\n- **Clean Architecture**: Separation of concerns.\n- **API Engineering**: RESTful maturity and schema-first design.\n- **Security**: JWT, Encryption, and OWASP mitigation.'
         },
         {
             name: 'frontend.md',
-            content: '# Frontend Development\nVisualizing and perfecting the user experience...'
+            content: '# Frontend Excellence & UX\n\n## Stack\n- **Performance**: SSR/SSG, Core Web Vitals, and asset optimization.\n- **UI/UX**: Premium aesthetics (Glassmorphism, High-end HSL transitions).\n- **Accessibility**: WCAG compliance and semantic HTML.'
         }
     ];
 
@@ -31,7 +31,8 @@ export class SkillManager {
 
         this.DEFAULT_SKILLS.forEach(skill => {
             const filePath = path.join(this.SKILLS_DIR, skill.name);
-            if (!fs.existsSync(filePath) || fs.readFileSync(filePath, 'utf-8').trim() === '') {
+            // Only write if empty or doesn't exist to avoid overwriting user customizations
+            if (!fs.existsSync(filePath) || fs.readFileSync(filePath, 'utf-8').trim().length < 50) {
                 fs.writeFileSync(filePath, skill.content);
             }
         });

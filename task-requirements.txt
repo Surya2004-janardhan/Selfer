@@ -1,0 +1,110 @@
+selfer is a npm package that can be installed using `npm install -g selfer`
+local first autonomous agent framework
+
+features:
+- local first
+- autonomous
+- plugin system
+- CLI
+
+core features include : 
+
+selfer init generates a .selfer folder inside that directory gaining knowloadge of that directory
+selfer start asks CLI or CLI + telegram for to access
+
+if cli it opne a chat interface in the terminal itself 
+
+if cli+telegram asks to configure telegram bot token in the .selfer repo 
+
+then checks the llm connectivity shd save llm in the .selfer config by defelaut it uses ollama if not u can use the providesrs given in the config file claude open ai gemini for now 
+
+The selfer tool treats the curren directory as a single project and repo linked to git 
+
+it calls the user as master , selfer only has session memory linked to the directory but not any global memory accorss the directories 
+
+it stores the sessions memory as the directory memory both are same 
+
+selfer utlizes its 15 agents effectively 
+
+plan-agent
+cli-cmds-agent 
+git-agent
+file-agent
+web-agent
+memory-agent
+code-agent
+review-agent
+edits-file-agent 
+routing-agent
+permission-agent
+telegram-agent 
+context-giver-agent 
+sub-process-agent
+process-tracking-agent 
+error-recovery-agent
+error-tracker-agent 
+web-browser-agent
+selfer has md files master and sub skills files where each md file acts as specifeid skills for databse git backend frontend .....10 other skills 
+each skill acts as a agent can be including if needed auto uses by selfer itself 
+
+
+selfer uses token frist appraoch it saves as much as tokens so that user can work on projects with less tokens and mroe context aware agents 
+
+the cli is very cool colored with green and blue where it can see nice animations when selfer is working along with reasoing and planning logs not too big logs , errors if any displayeed those to be logged make sure u have somr processed and permission to ve asked user yes or no those to be having themed colros 
+these permissions are neccessary for important and serious operations not for every small detail
+
+make sure u use several agents for a single task based on the requirement in either linear or non-linera or sometimes loop fashion , the agents share the comman session memory along with that each agent gets its own work by the main master agent which takes help of the router 
+
+when a task is broken down into smaller tasks the router agent decides which agent to use for each task and in what order such that all things are completed at the end , the router agent is the most important agent as it decides the flow of the agents 
+
+NLP tasks must be routed taken into consideration - if the task is simply asking for a summary or something similar it should be completed by the llm itself without involving other agents or use simple agent if it is just git commit then use git agent 
+
+the architecutre prompts and agents logic must be inspired by the current doing agentic frameworks like co-pilot and antigravity like ones 
+
+Make sure u avoid any loops or unnecessary agent calls , progress having tracked internallly by progress tracking agent 
+
+telegram having some inbuild commadns to the bot to know the status or send tasks from there telegram having access to the local llm once there msg is sent then the reply goes to there only the bg work is done here in the system 
+
+when sub process or agents gets error make sure u use both error recovery and error tracker agents to foucs on errors  when the error cant be solved by the llm intellegrenc or going for the same llm call for more than 3 times tell user this issue is coming help me out to gain some more context 
+
+instead of stoping the process when the sub process or agents gets errors recover urself with the last query or progress status queries or prompts or system instructions 
+
+dont waste tokens and time on the same error again and again dont waste llm calls when the task is simple 
+
+make sure u divide work always do batch and sub processing always 
+
+
+give inbuilt 15+ commands  when inside the cli with / tag before the command 
+
+make sure we have tags to selfer --tag so each tag has certain opeatiin starget with almost 10 tags avl 
+
+ensure cli is able to give context with the @filename 
+
+when the issue is so big and repeted so many times use browser agent to searh abt it using a proxy server web google such that u get some basic results top 3 raw fetch those and get context to urself 
+
+when the user provides links or something that needs to be gone to browser use ur browser if the gate way or auth persiste tell user i cant go ahead going forward towareds the task with the current context as im having 
+
+make sure u change the order or plans of usage of agents based on the on going plan if neccessary 
+
+take user queries get them queued when task is going on add a simple circle load when selfer is working add logs whehrer its planning, editing, reasoing ... small meaning full such that user knows, the queued queries gets added to the context in the checkpoints they dont effect the ongoing plan full but adds extra work or context to the work being doing 
+
+u must do work in checkpoitns once the plan is breaken down u make checkpoitns so the checkpoitns help u get gain back or sometimes adds the context to the model each of this , these checkpoints are saved as snapnots in the .selfer 
+
+when selfer completes its work give compressive 4-5 lines wt it did in this run so tat user knwos wt it has done for this run 
+
+make sure u utlize the .selfer as ur need context memory ...everything u need to be used for tat only 
+
+
+add any extra intellegence to the current planning
+
+WHEN THE USER NLP QUERY IS SO SHORT AND UNCLEAR U CAN USE THE ONGOING CONTEXT SO THAT U CAN GET DETAILED PLAN OF IT FROM THE AGENT SO THAT U LL KNOW WT USER REALLY MEEAT ITSEAD OF CONFUSION AND HALLICAUTNATIONS 
+
+WHEN THINGS ARE NOT CLEAR AND U START HALLICAUTNATE MAKE SURE U TAKE THE TASK PROGRESS QUERY CONTEXT AND MEMORY TO GET THE HELP AND REVERT THINGS 
+
+MAKE SURE U SAVE THOSE NEEDED USER QUERY INBETWEEN MEMORY REPONSE IN THE .SELFER LATER IT MIGHT BE USEFULL BUT INTELLEGENTLY ONLY THAT TOO 
+
+MAKE SURE THE OUTPUT IS DEADLY ACCURATE TO THE CURRENT PASE OF AI 
+
+
+
+## NOTE STRICT : INDUSTRY STANDARD PRODUCT TO BE THE END PORDUCT WITH SUPER FINE QUALITY THAT CAN REALLY DO WORK AND DOES WORK FOR USERS WITH BETTER ARCHITEURE INTELLEGENT ARCHITE LIKE CURSORS CLAUDE CODE CO PILOT AND ANTIGRAVUTY 

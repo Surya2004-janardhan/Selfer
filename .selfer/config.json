@@ -1,0 +1,12 @@
+{
+  "provider": "ollama",
+  "ollama": {
+    "model": "llama3:8b",
+    "baseUrl": "http://localhost:11434"
+  },
+  "telegram": {
+    "enabled": false,
+    "botToken": ""
+  },
+  "master": "Master"
+}

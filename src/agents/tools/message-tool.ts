@@ -111,10 +111,11 @@ function buildSendSchema(options: {
         {},
         {
           additionalProperties: true,
-          description: "Adaptive Card JSON object (when supported by the channel)",
+          description: "Adaptive Card JSON object (when supported)",
         },
       ),
     ),
+
   };
   if (!options.includeButtons) {
     delete props.buttons;
@@ -224,12 +225,9 @@ function buildChannelTargetSchema() {
     channelIds: Type.Optional(
       Type.Array(Type.String({ description: "Channel id filter (repeatable)." })),
     ),
-    guildId: Type.Optional(Type.String()),
     userId: Type.Optional(Type.String()),
     authorId: Type.Optional(Type.String()),
     authorIds: Type.Optional(Type.Array(Type.String())),
-    roleId: Type.Optional(Type.String()),
-    roleIds: Type.Optional(Type.Array(Type.String())),
     participant: Type.Optional(Type.String()),
   };
 }
@@ -314,18 +312,8 @@ function buildPresenceSchema() {
 function buildChannelManagementSchema() {
   return {
     name: Type.Optional(Type.String()),
-    type: Type.Optional(Type.Number()),
-    parentId: Type.Optional(Type.String()),
     topic: Type.Optional(Type.String()),
     position: Type.Optional(Type.Number()),
-    nsfw: Type.Optional(Type.Boolean()),
-    rateLimitPerUser: Type.Optional(Type.Number()),
-    categoryId: Type.Optional(Type.String()),
-    clearParent: Type.Optional(
-      Type.Boolean({
-        description: "Clear the parent/category when supported by the provider.",
-      }),
-    ),
   };
 }
 
@@ -476,53 +464,28 @@ function buildMessageToolDescription(options?: {
   currentChannel?: string;
   currentChannelId?: string;
 }): string {
-  const baseDescription = "Send, delete, and manage messages via channel plugins.";
+  const baseDescription = "Send, delete, and manage messages via Telegram.";
 
-  // If we have a current channel, show its actions and list other configured channels
-  if (options?.currentChannel) {
+  // If we have a current channel, show its actions
+  if (options?.currentChannel === "telegram") {
     const channelActions = filterActionsForContext({
       actions: listChannelSupportedActions({
         cfg: options.config,
-        channel: options.currentChannel,
+        channel: "telegram",
       }),
-      channel: options.currentChannel,
+      channel: "telegram",
       currentChannelId: options.currentChannelId,
     });
     if (channelActions.length > 0) {
       // Always include "send" as a base action
       const allActions = new Set(["send", ...channelActions]);
       const actionList = Array.from(allActions).toSorted().join(", ");
-      let desc = `${baseDescription} Current channel (${options.currentChannel}) supports: ${actionList}.`;
-
-      // Include other configured channels so cron/isolated agents can discover them
-      const otherChannels: string[] = [];
-      for (const plugin of listChannelPlugins()) {
-        if (plugin.id === options.currentChannel) {
-          continue;
-        }
-        const actions = listChannelSupportedActions({ cfg: options.config, channel: plugin.id });
-        if (actions.length > 0) {
-          const all = new Set(["send", ...actions]);
-          otherChannels.push(`${plugin.id} (${Array.from(all).toSorted().join(", ")})`);
-        }
-      }
-      if (otherChannels.length > 0) {
-        desc += ` Other configured channels: ${otherChannels.join(", ")}.`;
-      }
-
-      return desc;
+      return `${baseDescription} Supports: ${actionList}.`;
     }
   }
 
-  // Fallback to generic description with all configured actions
-  if (options?.config) {
-    const actions = listChannelMessageActions(options.config);
-    if (actions.length > 0) {
-      return `${baseDescription} Supports actions: ${actions.join(", ")}.`;
-    }
-  }
-
-  return `${baseDescription} Supports actions: send, delete, react, poll, pin, threads, and more.`;
+  // Fallback to generic description
+  return `${baseDescription} Supports actions: send, delete, react, poll, pin, and more.`;
 }
 
 export function createMessageTool(options?: MessageToolOptions): AnyAgentTool {

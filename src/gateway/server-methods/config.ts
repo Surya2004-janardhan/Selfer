@@ -23,7 +23,7 @@ import {
   type ConfigSchemaResponse,
 } from "../../config/schema.js";
 import { extractDeliveryInfo } from "../../config/sessions.js";
-import type { SelferConfig } from "../../config/types.Selfer.js";
+import type { SelferConfig } from "../../config/types.selfer.js";
 import {
   formatDoctorNonInteractiveHint,
   type RestartSentinelPayload,

@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import JSON5 from "json5";
 import { DEFAULT_AGENT_WORKSPACE_DIR, ensureAgentWorkspace } from "../agents/workspace.js";
 import { type SelferConfig, createConfigIO, writeConfigFile } from "../config/config.js";
+import type { ModelProviderConfig } from "../config/types.models.js";
 import { formatConfigPath, logConfigUpdated } from "../config/logging.js";
 import { resolveSessionTranscriptsDir } from "../config/sessions.js";
 import type { RuntimeEnv } from "../runtime.js";
@@ -42,10 +43,19 @@ export async function initCommand(
   const workspace = desiredWorkspace ?? defaults.workspace ?? DEFAULT_AGENT_WORKSPACE_DIR;
 
   // Enforce Ollama as default
-  const ollamaProvider = {
-    url: "http://localhost:11434",
+  const ollamaProvider: ModelProviderConfig = {
+    baseUrl: "http://localhost:11434",
+    api: "ollama",
     models: [
-      { id: "llama3:8b", alias: "default" }
+      {
+        id: "llama3:8b",
+        name: "Llama 3 8B",
+        reasoning: false,
+        input: ["text"],
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+        contextWindow: 8192,
+        maxTokens: 4096,
+      }
     ]
   };
 
@@ -56,16 +66,19 @@ export async function initCommand(
 
   const next: SelferConfig = {
     ...cfg,
+    ui: {
+      ...cfg.ui,
+      assistant: {
+        name: "Selfer",
+        avatar: "🦞"
+      }
+    },
     agents: {
       ...cfg.agents,
       defaults: {
         ...defaults,
         workspace,
         model: "ollama/llama3:8b",
-        identity: {
-          name: "Selfer",
-          emoji: "🦞"
-        }
       },
     },
     models: {

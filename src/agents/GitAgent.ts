@@ -17,19 +17,23 @@ export class GitAgent extends BaseAgent {
 
             // Handle 'commit' task
             if (task.toLowerCase().includes('commit')) {
-                if (status.files.length === 0) {
+                const diff = await this.git.diff(['--cached', '--stat']);
+                if (status.files.length === 0 && !diff) {
                     return "Git: Workspace is clean. Nothing to commit.";
                 }
 
-                // Identify files to add (default all if not specified)
                 await this.git.add('.');
 
-                // Extract or generate a conventional commit message
+                // Use LLM to generate a tight 1-line commit message if the user didn't provide a specific one
                 let commitMsg = task.replace(/commit/gi, '').trim();
-                if (commitMsg.length < 5) {
-                    commitMsg = `chore: update files based on task "${task}"`;
-                } else if (!/^(feat|fix|chore|docs|refactor|test|style|ci):/.test(commitMsg)) {
-                    commitMsg = `chore: ${commitMsg}`;
+                // If the message is generic or empty, generate from diff
+                if (commitMsg.length < 5 || commitMsg.toLowerCase().includes('latest changes') || commitMsg.toLowerCase().includes('changes')) {
+                    const detailedDiff = await this.git.diff(['--cached']);
+                    const msgResponse = await this.callLLM(
+                        "Generate a concise, professional 1-line conventional commit message (max 60 chars) based on this diff. Output ONLY the message.",
+                        detailedDiff.substring(0, 2000)
+                    );
+                    commitMsg = msgResponse.trim().replace(/^"|"$/g, ''); // Clean quotes
                 }
 
                 await this.git.commit(commitMsg);

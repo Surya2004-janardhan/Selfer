@@ -54,12 +54,16 @@ export class Router {
 
             const agent = this.agents.get(step.agent);
             if (agent) {
-                // Production-Ready: Inject skill context
-                const skill = SkillManager.getSkillForAgent(step.agent);
-                const taskWithSkill = skill ? `[RELEVANT SKILL CONTEXT]\n${skill}\n---\nTASK: ${step.task}` : step.task;
+                // Refined Skill Injection: Only mention the expertise name to avoid hallucinations
+                const skillName = SkillManager.getSkillForAgent(step.agent);
+                const taskWithContext = skillName ? { task: step.task, expertise: skillName } : step.task;
 
-                const result = await agent.run(taskWithSkill, context);
-                finalResult += `\nStep ${i + 1} Result: ${result}`;
+                // We pass a more structured task or just the string to keep it clean
+                const result = await agent.run(typeof taskWithContext === 'string' ? taskWithContext : `${taskWithContext.task} (Focus: ${taskWithContext.expertise})`, context);
+
+                // Sanitize result for the summary (limit size and remove potential raw noise)
+                const sanitizedResult = typeof result === 'string' ? result.substring(0, 200) : JSON.stringify(result).substring(0, 200);
+                finalResult += `\nStep ${i + 1} Result: ${sanitizedResult}`;
             } else {
                 CLIGui.error(`Agent ${step.agent} not found for step ${i + 1}`);
             }

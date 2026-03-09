@@ -8,7 +8,7 @@ export class SkillManager {
     private static DEFAULT_SKILLS = [
         {
             name: 'master.md',
-            content: '# Master Orchestration\n\n## Strategic Oversight\n- **Context Preservation**: Always maintain the "Why" behind a user\'s request.\n- **Agent Orchestration**: Delegate to the most efficient agent for the specific sub-task.\n- **Decision Logic**: Iterative refinement and strict ROI on task priority.'
+            content: '# Master Orchestration\n\n## Strategic Oversight\n- **Context Preservation**: Always maintain the "Why" behind a user\'s request.\n- **Agent Orchestration**: Delegate to the most efficient agent for the specific sub-task.\n- **Decision Logic**: Iterative refinement and ROI on task priority.'
         },
         {
             name: 'git.md',
@@ -31,7 +31,6 @@ export class SkillManager {
 
         this.DEFAULT_SKILLS.forEach(skill => {
             const filePath = path.join(this.SKILLS_DIR, skill.name);
-            // Only write if empty or doesn't exist to avoid overwriting user customizations
             if (!fs.existsSync(filePath) || fs.readFileSync(filePath, 'utf-8').trim().length < 50) {
                 fs.writeFileSync(filePath, skill.content);
             }
@@ -51,10 +50,23 @@ export class SkillManager {
     }
 
     static getSkillContent(skillName: string): string | null {
-        const filePath = path.join(this.SKILLS_DIR, `${skillName}.md`);
+        const filePath = path.join(this.SKILLS_DIR, `${skillName.toLowerCase()}.md`);
         if (fs.existsSync(filePath)) {
             return fs.readFileSync(filePath, 'utf-8');
         }
         return null;
+    }
+
+    static getSkillForAgent(agentName: string): string | null {
+        const mapping: Record<string, string> = {
+            'GitAgent': 'git',
+            'FileAgent': 'cli',
+            'BackendAgent': 'backend',
+            'FrontendAgent': 'frontend',
+            'CodeAgent': 'backend',
+            'EditsAgent': 'backend'
+        };
+        const skillName = mapping[agentName];
+        return skillName ? this.getSkillContent(skillName) : this.getSkillContent('master');
     }
 }

@@ -54,7 +54,11 @@ export class Router {
 
             const agent = this.agents.get(step.agent);
             if (agent) {
-                const result = await agent.run(step.task, context);
+                // Production-Ready: Inject skill context
+                const skill = SkillManager.getSkillForAgent(step.agent);
+                const taskWithSkill = skill ? `[RELEVANT SKILL CONTEXT]\n${skill}\n---\nTASK: ${step.task}` : step.task;
+
+                const result = await agent.run(taskWithSkill, context);
                 finalResult += `\nStep ${i + 1} Result: ${result}`;
             } else {
                 CLIGui.error(`Agent ${step.agent} not found for step ${i + 1}`);

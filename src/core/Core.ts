@@ -3,7 +3,7 @@ import * as path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
 import { CLIGui } from '../utils/CLIGui';
-import { OllamaProvider } from './LLMProvider';
+import { OllamaProvider, OpenAIProvider, GeminiProvider, ClaudeProvider, FallbackLLMProvider, LLMProvider } from './LLMProvider';
 import { Router } from './Router';
 import { MemoryStore } from './MemoryStore';
 
@@ -44,15 +44,11 @@ export class Core {
             const configPath = path.join(this.SELFER_DIR, 'config.json');
             if (!fs.existsSync(configPath)) {
                 const defaultConfig = {
-                    provider: 'ollama',
-                    ollama: {
-                        model: 'llama3',
-                        baseUrl: 'http://localhost:11434'
-                    },
-                    telegram: {
-                        enabled: false,
-                        botToken: ''
-                    },
+                    openai: { apiKey: '', model: 'gpt-4o' },
+                    gemini: { apiKey: '', model: 'gemini-1.5-pro' },
+                    claude: { apiKey: '', model: 'claude-3-5-sonnet-20240620' },
+                    ollama: { model: 'llama3:8b', baseUrl: 'http://localhost:11434' },
+                    telegram: { enabled: false, botToken: '' },
                     master: 'Master'
                 };
                 fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2));
@@ -83,30 +79,53 @@ export class Core {
         }
 
         const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-        const provider = new OllamaProvider(config.ollama);
-        const router = new Router(provider);
+
+        const providersList: { name: string; provider: LLMProvider }[] = [];
+
+        if (config.openai?.apiKey) {
+            providersList.push({ name: 'OpenAI', provider: new OpenAIProvider(config.openai) });
+        }
+        if (config.gemini?.apiKey) {
+            providersList.push({ name: 'Gemini', provider: new GeminiProvider(config.gemini) });
+        }
+        if (config.claude?.apiKey) {
+            providersList.push({ name: 'Claude', provider: new ClaudeProvider(config.claude) });
+        }
+        if (config.ollama?.model) {
+            providersList.push({ name: 'Ollama', provider: new OllamaProvider(config.ollama) });
+        }
+
+        if (providersList.length === 0) {
+            CLIGui.error('No LLM providers configured. Please check .selfer/config.json');
+            return;
+        }
+
+        const mainProvider = new FallbackLLMProvider(providersList);
+        const router = new Router(mainProvider);
         const memoryStore = new MemoryStore(process.cwd());
 
-        // Register Agents
-        router.registerAgent(new PlanAgent(provider));
-        router.registerAgent(new CLIAgent(provider));
-        router.registerAgent(new GitAgent(provider));
-        router.registerAgent(new FileAgent(provider));
-        router.registerAgent(new WebAgent(provider));
-        router.registerAgent(new CodeAgent(provider));
-        router.registerAgent(new ReviewAgent(provider));
-        router.registerAgent(new EditsAgent(provider));
-        router.registerAgent(new PermissionAgent(provider));
-        router.registerAgent(new TelegramAgent(provider));
-        router.registerAgent(new ContextAgent(provider));
-        router.registerAgent(new SubProcessAgent(provider));
-        router.registerAgent(new TrackingAgent(provider));
-        router.registerAgent(new ErrorRecoveryAgent(provider));
-        router.registerAgent(new ErrorTrackerAgent(provider));
-        router.registerAgent(new BrowserAgent(provider));
-        router.registerAgent(new MemoryAgent(provider));
+        // Register Agents with the fallback provider
+        router.registerAgent(new PlanAgent(mainProvider));
+        router.registerAgent(new CLIAgent(mainProvider));
+        router.registerAgent(new GitAgent(mainProvider));
 
-        CLIGui.info(`Using LLM Provider: ${chalk.cyan(config.provider)}`);
+        // ... (rest of registration)
+        router.registerAgent(new FileAgent(mainProvider));
+        router.registerAgent(new WebAgent(mainProvider));
+        router.registerAgent(new CodeAgent(mainProvider));
+        router.registerAgent(new ReviewAgent(mainProvider));
+        router.registerAgent(new EditsAgent(mainProvider));
+        router.registerAgent(new PermissionAgent(mainProvider));
+        router.registerAgent(new TelegramAgent(mainProvider));
+        router.registerAgent(new ContextAgent(mainProvider));
+        router.registerAgent(new SubProcessAgent(mainProvider));
+        router.registerAgent(new TrackingAgent(mainProvider));
+        router.registerAgent(new ErrorRecoveryAgent(mainProvider));
+        router.registerAgent(new ErrorTrackerAgent(mainProvider));
+        router.registerAgent(new BrowserAgent(mainProvider));
+        router.registerAgent(new MemoryAgent(mainProvider));
+
+        CLIGui.info(`Configured Providers: ${chalk.cyan(providersList.map(p => p.name).join(', '))}`);
         CLIGui.info('Starting chat interface...');
 
         const context = {

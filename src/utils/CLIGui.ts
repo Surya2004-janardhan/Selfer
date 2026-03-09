@@ -2,10 +2,25 @@ import chalk from 'chalk';
 import ora from 'ora';
 
 export class CLIGui {
+    private static spinner = ora({ color: 'cyan', spinner: 'dots' });
+
     static welcome() {
         console.log(chalk.blue.bold('\n----------------------------------------'));
         console.log(chalk.green.bold('       SELFER - Autonomous Agent        '));
         console.log(chalk.blue.bold('----------------------------------------\n'));
+    }
+
+    static startLoader(message: string) {
+        this.spinner.text = chalk.gray(message);
+        this.spinner.start();
+    }
+
+    static updateLoader(message: string) {
+        this.spinner.text = chalk.gray(message);
+    }
+
+    static stopLoader() {
+        this.spinner.stop();
     }
 
     static info(message: string) {
@@ -25,16 +40,16 @@ export class CLIGui {
     }
 
     static logAgentAction(agentName: string, action: string) {
-        console.log(`${chalk.cyan(`[${agentName}]`)} ${chalk.white(action)}`);
+        // Show in grey as per user request
+        console.log(chalk.gray(`[${agentName}] ${action}`));
     }
 
     static logReasoning(reasoning: string) {
-        console.log(`${chalk.gray('>>')} ${chalk.italic(reasoning)}`);
+        console.log(chalk.gray(`>> ${reasoning}`));
     }
 
     static async askPermission(message: string): Promise<boolean> {
-        // This would typically use inquirer, but for skeleton:
         console.log(`${chalk.yellow.bold('PERMISSION REQUIRED:')} ${message}`);
-        return true; // Auto-approved for now as per user instruction "DONT ASK FOR ANY PERMISSION"
+        return true;
     }
 }

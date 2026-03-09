@@ -146,8 +146,14 @@ export class Core {
                 const result = await router.routeTask(userInput, context);
                 console.log(chalk.blue('\nSelfer > ') + chalk.white(result) + '\n');
 
-                // Save session memory
+                // Save session memory and check for consolidation
                 await memoryStore.saveSession({ query: userInput, response: result });
+
+                // Intelligent context update if enough sessions
+                const memory = JSON.parse(fs.readFileSync(path.join(this.SELFER_DIR, 'memory.json'), 'utf-8'));
+                if (memory.sessions.length >= 5) {
+                    await memoryStore.updateContext(mainProvider);
+                }
             } catch (error: any) {
                 CLIGui.error(`Task execution failed: ${error.message}`);
             }

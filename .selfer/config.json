@@ -12,7 +12,7 @@
     "model": "claude-3-5-sonnet-20240620"
   },
   "ollama": {
-    "model": "kimi-k2.5",
+    "model": "llama3:8b",
     "baseUrl": "http://localhost:11434"
   },
   "telegram": {

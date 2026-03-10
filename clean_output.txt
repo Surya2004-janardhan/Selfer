@@ -1,3 +1,3 @@
-Here's a summary of the project actions for the user:
+Here is a summary of the project actions:
 
-The README.md file was rewritten with meaningful content describing Selfer as a multi-agent framework. The changes were successfully committed with the message "Rewrote README.md to describe Selfer's capabilities and usage". After retrying, the changes were successfully pushed to the repository.
+The README.md file was rewritten with meaningful content describing Selfer as a multi-agent framework. The changes were committed with the message "Rewrote README with framework description" and then successfully pushed to the repository.

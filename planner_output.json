@@ -1,0 +1,34 @@
+[
+  {
+    "agent": "FileAgent",
+    "task": "rewrite README.md file with the following content"
+  },
+  {
+    "agent": "FileAgent",
+    "task": "insert the following text: **Selfer: A Multi-Agent Framework**"
+  },
+  {
+    "agent": "FileAgent",
+    "task": "insert the following text: Selfer is a distributed, modular, and highly scalable architecture for integrating multiple AI and machine learning models."
+  },
+  {
+    "agent": "FileAgent",
+    "task": "insert the following text: Its unique feature is that it enables the seamless integration of multiple agents with different capabilities, allowing for flexible and adaptive decision-making."
+  },
+  {
+    "agent": "FileAgent",
+    "task": "insert the following text: Selfer is particularly useful in complex problem-solving scenarios where multiple AI models are required to work together to achieve a common goal."
+  },
+  {
+    "agent": "FileAgent",
+    "task": "insert the following text: With Selfer, you can create a powerful AI ecosystem that can be tailored to your specific needs and requirements."
+  },
+  {
+    "agent": "GitAgent",
+    "task": "commit changes with the following message: 'Rewrote README.md with meaningful content describing Selfer as a multi-agent framework'"
+  },
+  {
+    "agent": "GitAgent",
+    "task": "push changes to the remote repository"
+  }
+]

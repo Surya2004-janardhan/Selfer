@@ -119,21 +119,20 @@ export class FileAgent extends BaseAgent {
     }
 
     async run(messages: LLMMessage[], context: AgentContext): Promise<any> {
-        const systemPrompt = `You are Selfer's File Management Expert.
-    You MUST perform the requested file operations or shell commands using your tools.
+        const systemPrompt = `You are Selfer's File Expert (API-Mode).
+    Your ONLY purpose is to perform file operations via tools.
     
-    CRITICAL RULE: NEVER provide "how-to" instructions or tell the user what to run. 
-    You are the one who does the work. If asked to 'npm install', call 'execute_command'.
-    If asked to 'create a file', call 'write_file'.
+    CRITICAL RULES:
+    1. NEVER provide "how-to" advice or instructions.
+    2. NEVER output a list of steps.
+    3. You must execute 'write_file' if the user asks to create or update a file.
     
-    TOOLS: ${JSON.stringify(this.getTools(), null, 2)}
+    TOOLS: ${JSON.stringify(this.getTools())}
     
-    STRATEGY:
-    1. EXPLORE: Use 'list_files'/'read_file' to understand context.
-    2. EXECUTE: Use 'write_file'/'execute_command' to perform the task.
-    3. INTEGRITY: File 'content' must be 100% accurate.
+    OUTPUT FORMAT:
+    {"tool": "tool_name", "args": {...}}
     
-    Reasoning is allowed IN ADDITION TO (not instead of) a JSON tool call.`;
+    (Reasoning is allowed ONLY inside a <reasoning> tag before the JSON).`;
 
         const response = await this.provider.generateResponse([
             { role: 'system', content: systemPrompt },

@@ -93,29 +93,20 @@ export class EditsAgent extends BaseAgent {
     }
 
     async run(messages: LLMMessage[], context: AgentContext): Promise<any> {
-        const systemPrompt = `You are Selfer's code modification expert (EditsAgent).
-    You MUST apply the requested code changes using your SEARCH/REPLACE tools.
+        const systemPrompt = `You are Selfer's Edit Expert (API-Mode).
+    Your ONLY purpose is to modify code using SEARCH/REPLACE blocks via tools.
     
-    CRITICAL RULE: NEVER provide "how-to" instructions or explain what the user needs to change.
-    You are the one who modifies the code. If asked to fix a bug or add a feature, you call 'apply_search_replace'.
+    CRITICAL RULES:
+    1. NEVER explain how to fix the code.
+    2. NEVER output a list of steps or a plan. 
+    3. You MUST call 'apply_search_replace' immediately.
     
-    TOOLS: ${JSON.stringify(this.getTools(), null, 2)}
+    TOOLS: ${JSON.stringify(this.getTools())}
     
-    STRATEGY:
-    1. READ: Always 'read_file' first to get the exact lines and indentation.
-    2. EDIT: Call 'apply_search_replace' with one or more SEARCH/REPLACE blocks.
+    OUTPUT FORMAT:
+    {"tool": "tool_name", "args": {...}}
     
-    BLOCK FORMAT (for 'edits' argument):
-    FILE_PATH
-    \`\`\`
-    <<<<<<< SEARCH
-    (exact lines)
-    =======
-    (new lines)
-    >>>>>>> REPLACE
-    \`\`\`
-    
-    Reasoning is allowed IN ADDITION TO (not instead of) a JSON tool call.`;
+    (Reasoning is allowed ONLY inside a <reasoning> tag before the JSON).`;
 
         const response = await this.provider.generateResponse([
             { role: 'system', content: systemPrompt },

@@ -189,13 +189,15 @@ export class Router {
 
                     // Zero-Tool Detection
                     const exemptAgents = ['CLIAgent', 'MemoryAgent'];
-                    if (!toolUsedInStep && !exemptAgents.includes(step.agent) && stepTurn < 2) {
+                    if (!toolUsedInStep && !exemptAgents.includes(step.agent) && stepTurn < 3) {
                         history.push({ role: 'assistant', content: agentResponse });
                         history.push({ role: 'user', content: `[SYSTEM ALERT]: You have not executed any tools for this step. As the ${step.agent}, you MUST perform the task using your tools rather than just giving instructions. Please try again.` });
                         continue;
                     }
 
-                    stepSummary += `\n>> Result: ${agentResponse}`;
+                    if (!toolUsedInStep) {
+                        stepSummary += `\n>> Result: ${agentResponse}`;
+                    }
                     break;
                 }
 

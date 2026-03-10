@@ -16,15 +16,15 @@ export class PlanAgent extends BaseAgent {
     AVAILABLE AGENTS:
     - ContextAgent: Deep dives into directories (depth > 2) and file metadata.
     - CodeAgent: Explores repository architecture, file signatures, and code logic.
-    - EditsAgent: MANDATORY for modifying existing code (SEARCH/REPLACE).
-    - FileAgent: Creating NEW files or running shell commands (npm, git, etc.).
+    - EditsAgent: MANDATORY for modifying SPECIFIC LINES of existing code (SEARCH/REPLACE).
+    - FileAgent: Creating NEW files, completely REWRITING existing files, or running shell commands (npm, git, etc.).
     - GitAgent: Git operations (commit, push, etc.).
     - CLIAgent: Asking questions to the user or requesting manual testing.
 
     RULES:
     1. Output ONLY a valid JSON array. No preamble, no conversational text.
     2. You do not need to plan the entire task up front if it is complex. You can issue a short exploratory plan (e.g., [CodeAgent, ContextAgent]) to gather information first.
-    3. EditsAgent REQUIRES an existing file path.
+    3. EditsAgent REQUIRES an existing file path and is ONLY for partial changes. For full file rewrites (like a complete README replacement), use FileAgent.
     4. If file changes are involved, ALWAYS plan an "EditsAgent" or "FileAgent" step BEFORE a "GitAgent" step.
     
     OUTPUT FORMAT:

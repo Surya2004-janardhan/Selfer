@@ -166,23 +166,28 @@ export class Router {
                             }
 
                             if (!toolResult.success) {
+                                CLIGui.logAgentAction(step.agent, `${chalk.red('Failed')}. Retrying...`);
+
+                                let errorPrompt = `TOOL ERROR: ${toolResult.error}\n\nPlease analyze the error and try calling the tool again with corrected arguments, or use a different approach.`;
+
                                 const recoveryAgent = this.agents.get('ErrorRecoveryAgent');
                                 if (recoveryAgent) {
-                                    CLIGui.logAgentAction(step.agent, `${chalk.red('Failed')}. Consulting Recovery Agent...`);
                                     const recoveryAdvice = await recoveryAgent.run([
                                         { role: 'user', content: `Failed Tool: ${parsed.tool}\nError: ${toolResult.error}\nIntent: ${step.task}` }
                                     ], context);
-                                    history.push({ role: 'assistant', content: agentResponse });
-                                    history.push({ role: 'user', content: `TOOL ERROR: ${toolResult.error}\nRECOVERY ADVICE: ${recoveryAdvice}\n\nPlease try again.` });
-                                    stepSummary += `\n- ${parsed.tool}: failed (recovery advised)`;
-                                    continue;
+                                    errorPrompt += `\n\nRECOVERY ADVICE: ${recoveryAdvice}`;
                                 }
+
+                                history.push({ role: 'assistant', content: agentResponse });
+                                history.push({ role: 'user', content: errorPrompt });
+                                stepSummary += `\n- ${parsed.tool}: failed (Retrying turn ${stepTurn}/${5})`;
+                                continue;
                             }
 
-                            const outStr = toolResult.success ? toolResult.output : `ERROR: ${toolResult.error}`;
+                            const outStr = toolResult.output;
                             history.push({ role: 'assistant', content: agentResponse });
                             history.push({ role: 'user', content: `TOOL OUTPUT: ${outStr}\n\nProceed to next action or finish.` });
-                            stepSummary += `\n- ${parsed.tool}: ${toolResult.success ? 'success' : 'failed'}`;
+                            stepSummary += `\n- ${parsed.tool}: success`;
                             continue;
                         }
                     } catch (e) { /* Summary response */ }

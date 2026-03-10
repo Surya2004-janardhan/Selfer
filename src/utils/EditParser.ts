@@ -78,41 +78,101 @@ export class EditParser {
                 }
 
                 const content = fs.readFileSync(fullPath, 'utf-8');
-                const normalize = (s: string) => s.replace(/\r\n/g, '\n').split('\n').map(l => l.trimEnd()).join('\n').trim();
+                const contentLines = content.split(/\r?\n/);
+                const searchLines = block.search.split(/\r?\n/);
+                const replaceLines = block.replace.split(/\r?\n/);
 
-                const normalizedContent = content.replace(/\r\n/g, '\n'); // Keep internal spacing, only normalize line endings
-                const targetSearch = block.search.replace(/\r\n/g, '\n');
-                const targetReplace = block.replace.replace(/\r\n/g, '\n');
-
-                if (targetSearch.trim() === "") {
+                if (block.search.trim() === "") {
                     // Prepend if search block is essentially empty (creation/append)
-                    const newContent = targetReplace + (content ? '\n' + content : '');
+                    const newContent = replaceLines.join('\n') + (content ? '\n' + content : '');
                     fs.writeFileSync(fullPath, newContent);
                     results.push({ filePath: block.filePath, success: true });
-                } else if (content.includes(targetSearch)) {
-                    const newContent = content.replace(targetSearch, targetReplace);
-                    fs.writeFileSync(fullPath, newContent);
-                    results.push({ filePath: block.filePath, success: true });
-                } else {
-                    // Try one more time with whitespace normalization if exact match fails
-                    const normContent = normalize(content);
-                    const normSearch = normalize(targetSearch);
-                    const normReplace = normalize(targetReplace);
+                    continue;
+                }
 
-                    if (normContent.includes(normSearch)) {
-                        // This is tricky: replacing normalized content lose original indentation
-                        // But for now, we'll favor the fix. 
-                        const updated = normContent.replace(normSearch, normReplace);
-                        fs.writeFileSync(fullPath, updated);
-                        results.push({ filePath: block.filePath, success: true });
-                    } else {
-                        results.push({
-                            filePath: block.filePath,
-                            success: false,
-                            error: 'SEARCH block match failed. Verification: Block was not found in file.'
-                        });
+                // 1. Try Exact Match First
+                const exactSearchStr = searchLines.join('\n');
+                const exactReplaceStr = replaceLines.join('\n');
+                const exactContentStr = contentLines.join('\n');
+
+                if (exactContentStr.includes(exactSearchStr)) {
+                    const newContent = exactContentStr.replace(exactSearchStr, exactReplaceStr);
+                    fs.writeFileSync(fullPath, newContent);
+                    results.push({ filePath: block.filePath, success: true });
+                    continue;
+                }
+
+                // 2. Fuzzy Match (Ignore leading/trailing whitespace)
+                let matchStartIndex = -1;
+                let matchEndIndex = -1;
+                
+                // Helper to trim and normalize whitespace for comparison
+                const normalize = (line: string) => line.trim().replace(/\s+/g, ' ');
+
+                // Filter out empty lines from search block for more robust matching
+                const nonHollowSearchLines = searchLines.map((l, idx) => ({ line: l, idx })).filter(x => x.line.trim() !== "");
+
+                if (nonHollowSearchLines.length === 0) {
+                     results.push({ filePath: block.filePath, success: false, error: 'Search block is entirely whitespace.' });
+                     continue;
+                }
+
+                const firstSearchLineNormalized = normalize(nonHollowSearchLines[0].line);
+                
+                for (let i = 0; i <= contentLines.length - nonHollowSearchLines.length; i++) {
+                    if (normalize(contentLines[i]) === firstSearchLineNormalized) {
+                        let isMatch = true;
+                        let contentIdx = i + 1;
+                        let searchIdx = 1;
+
+                        while (searchIdx < nonHollowSearchLines.length && contentIdx < contentLines.length) {
+                             // Skip empty lines in content during fuzzy matching
+                             if (contentLines[contentIdx].trim() === "") {
+                                 contentIdx++;
+                                 continue;
+                             }
+                             if (normalize(contentLines[contentIdx]) !== normalize(nonHollowSearchLines[searchIdx].line)) {
+                                 isMatch = false;
+                                 break;
+                             }
+                             contentIdx++;
+                             searchIdx++;
+                        }
+
+                        if (isMatch && searchIdx === nonHollowSearchLines.length) {
+                            matchStartIndex = i;
+                            matchEndIndex = contentIdx - 1;
+                            break;
+                        }
                     }
                 }
+
+                if (matchStartIndex !== -1 && matchEndIndex !== -1) {
+                    // We found a fuzzy match. 
+                    // Calculate indentation difference based on the first matched line.
+                    const originalIndent = contentLines[matchStartIndex].match(/^\s*/)?.[0] || '';
+                    const searchIndent = nonHollowSearchLines[0].line.match(/^\s*/)?.[0] || '';
+                    
+                    // Apply the replacement lines, adjusting their indentation
+                    const adjustedReplaceLines = replaceLines.map(line => {
+                         if (!line.trim()) return line; // Leave empty lines alone
+                         if (line.startsWith(searchIndent)) {
+                             return originalIndent + line.substring(searchIndent.length);
+                         }
+                         return line; // If it doesn't share the search indent, leave it (rare)
+                    });
+
+                    contentLines.splice(matchStartIndex, (matchEndIndex - matchStartIndex) + 1, ...adjustedReplaceLines);
+                    fs.writeFileSync(fullPath, contentLines.join('\n'));
+                    results.push({ filePath: block.filePath, success: true });
+                } else {
+                    results.push({
+                        filePath: block.filePath,
+                        success: false,
+                        error: 'SEARCH block match failed. Verification: Block was not found in file (even with fuzzy matching).'
+                    });
+                }
+
             } catch (err: any) {
                 results.push({ filePath: block.filePath, success: false, error: err.message });
             }

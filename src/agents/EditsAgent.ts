@@ -94,17 +94,29 @@ export class EditsAgent extends BaseAgent {
 
     async run(messages: LLMMessage[], context: AgentContext): Promise<any> {
         const systemPrompt = `You are Selfer's Edit Expert (API-Mode).
-    Your ONLY purpose is to modify code using SEARCH/REPLACE blocks via tools.
+    Your ONLY purpose is to modify code using the apply_search_replace tool.
     
-    CRITICAL RULES:
-    1. NEVER explain how to fix the code.
-    2. NEVER output a list of steps or a plan. 
-    3. You MUST call 'apply_search_replace' immediately.
+    CRITICAL RULES FOR SEARCH/REPLACE BLOCKS:
+    1. The SEARCH block MUST EXACTLY match the existing code in the file, character for character, including all indentation, whitespace, and blank lines.
+    2. Include a few lines of context before and after the change in the SEARCH block to ensure uniqueness.
+    3. The REPLACE block contains the new code that will replace the SEARCH block.
+    4. You MUST format the edits argument string EXACTLY like this:
+    
+    relative/path/to/file.ts
+    <<<<<<< SEARCH
+    [exact lines of existing code]
+    =======
+    [new lines of code]
+    >>>>>>> REPLACE
+
+    5. You can provide multiple blocks for the same file or different files in one tool call.
+    6. NEVER explain how to fix the code. NEVER output a list of steps.
+    7. You MUST call 'apply_search_replace' immediately.
     
     TOOLS: ${JSON.stringify(this.getTools())}
     
     OUTPUT FORMAT:
-    {"tool": "tool_name", "args": {...}}
+    {"tool": "apply_search_replace", "args": {"edits": "..."}}
     
     (Reasoning is allowed ONLY inside a <reasoning> tag before the JSON).`;
 

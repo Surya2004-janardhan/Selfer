@@ -1,7 +1,7 @@
 {
   "name": "selfer",
   "version": "1.0.0",
-  "description": "",
+  "description": "Selfer — an autonomous AI coding agent for your terminal",
   "main": "dist/index.js",
   "bin": {
     "selfer": "./dist/index.js"
@@ -9,20 +9,34 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "tsc && node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
+  "keywords": [
+    "ai",
+    "agent",
+    "coding",
+    "autonomous",
+    "cli",
+    "llm",
+    "openai",
+    "anthropic",
+    "gemini",
+    "ollama"
+  ],
+  "author": "Selfer Contributors",
+  "license": "ISC",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Surya2004-janardhan/Selfer.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/Surya2004-janardhan/Selfer/issues"
   },
   "homepage": "https://github.com/Surya2004-janardhan/Selfer#readme",
+  "type": "commonjs",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",
     "axios": "^1.13.6",
@@ -43,6 +57,7 @@
     "@types/node": "^25.3.5",
     "@types/ora": "^3.1.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.1.0"
   }
 }

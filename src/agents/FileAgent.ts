@@ -2,6 +2,7 @@ import { BaseAgent, AgentContext } from './BaseAgent';
 import { CLIGui } from '../utils/CLIGui';
 import { LLMMessage } from '../core/LLMProvider';
 import { Tool, ToolResult } from '../core/ToolRegistry';
+import { ContextGuard } from '../utils/ContextGuard';
 import * as fs from 'fs';
 import * as path from 'path';
 import { exec } from 'child_process';
@@ -9,9 +10,16 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
+/** Maximum milliseconds a shell command is allowed to run. */
+const COMMAND_TIMEOUT_MS = 60_000;
+
 export class FileAgent extends BaseAgent {
+    /** Absolute path of the project root. All file ops are restricted to this. */
+    private readonly projectRoot: string;
+
     constructor(provider: any) {
         super('FileAgent', provider);
+        this.projectRoot = process.cwd();
     }
 
     getTools(): Tool[] {
@@ -22,7 +30,7 @@ export class FileAgent extends BaseAgent {
                 parameters: {
                     type: 'object',
                     properties: {
-                        path: { type: 'string', description: 'Relative path to list' }
+                        path: { type: 'string', description: 'Relative path to list (defaults to project root)' }
                     },
                     required: []
                 }
@@ -52,7 +60,7 @@ export class FileAgent extends BaseAgent {
             },
             {
                 name: 'execute_command',
-                description: 'Executes a system command in the project directory.',
+                description: 'Executes a shell command in the project directory. Times out after 60 seconds.',
                 parameters: {
                     type: 'object',
                     properties: {
@@ -77,29 +85,40 @@ export class FileAgent extends BaseAgent {
 
     async executeTool(name: string, args: any): Promise<ToolResult> {
         try {
-            const targetPath = args.path ? path.normalize(args.path).replace(/^(\.\.[\/\\])+/, '') : '';
-            const fullPath = path.join(process.cwd(), targetPath);
-
             switch (name) {
-                case 'list_files':
-                    const files = this.walkDir(fullPath, [], process.cwd());
-                    return { success: true, output: files.join('\n') };
+                case 'list_files': {
+                    const targetPath = args.path
+                        ? this.safeResolvePath(args.path)
+                        : this.projectRoot;
+                    if (!targetPath) return { success: false, output: '', error: 'Path is outside the project root.' };
+                    const files = this.walkDir(targetPath, [], this.projectRoot);
+                    const output = ContextGuard.truncate(files.join('\n'));
+                    return { success: true, output };
+                }
 
-                case 'read_file':
+                case 'read_file': {
+                    const fullPath = this.safeResolvePath(args.path);
+                    if (!fullPath) return { success: false, output: '', error: 'Path is outside the project root.' };
                     if (!fs.existsSync(fullPath)) return { success: false, output: '', error: `File not found: ${args.path}` };
                     const content = fs.readFileSync(fullPath, 'utf-8');
-                    return { success: true, output: content };
+                    return { success: true, output: ContextGuard.truncate(content) };
+                }
 
-                case 'write_file':
+                case 'write_file': {
                     if (args.content === undefined) {
                         return { success: false, output: '', error: 'Missing required argument: content. You must provide the FULL file content.' };
                     }
+                    const fullPath = this.safeResolvePath(args.path);
+                    if (!fullPath) return { success: false, output: '', error: 'Path is outside the project root.' };
                     const dir = path.dirname(fullPath);
                     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
                     fs.writeFileSync(fullPath, args.content);
                     return { success: true, output: `Successfully wrote to ${args.path}` };
+                }
 
-                case 'delete_path':
+                case 'delete_path': {
+                    const fullPath = this.safeResolvePath(args.path);
+                    if (!fullPath) return { success: false, output: '', error: 'Path is outside the project root.' };
                     if (!fs.existsSync(fullPath)) return { success: false, output: '', error: `Path not found: ${args.path}` };
                     const stats = fs.statSync(fullPath);
                     if (stats.isDirectory()) {
@@ -108,10 +127,16 @@ export class FileAgent extends BaseAgent {
                         fs.unlinkSync(fullPath);
                     }
                     return { success: true, output: `Successfully deleted ${args.path}` };
+                }
 
-                case 'execute_command':
-                    const { stdout, stderr } = await execAsync(args.command, { cwd: process.cwd() });
-                    return { success: true, output: stdout + (stderr ? `\nErrors: ${stderr}` : '') };
+                case 'execute_command': {
+                    const { stdout, stderr } = await execAsync(args.command, {
+                        cwd: this.projectRoot,
+                        timeout: COMMAND_TIMEOUT_MS
+                    });
+                    const raw = stdout + (stderr ? `\nStderr: ${stderr}` : '');
+                    return { success: true, output: ContextGuard.truncate(raw) };
+                }
 
                 default:
                     return { success: false, output: '', error: `Unknown tool: ${name}` };
@@ -144,6 +169,19 @@ export class FileAgent extends BaseAgent {
             ...messages
         ]);
         return response.content;
+    }
+
+    /**
+     * Resolves a relative path and ensures it is within the project root.
+     * Returns the resolved absolute path, or null if the path is outside the root.
+     */
+    private safeResolvePath(relativePath: string): string | null {
+        const resolved = path.resolve(this.projectRoot, relativePath);
+        // Ensure the resolved path starts with projectRoot (no traversal)
+        if (!resolved.startsWith(this.projectRoot + path.sep) && resolved !== this.projectRoot) {
+            return null;
+        }
+        return resolved;
     }
 
     private walkDir(dir: string, fileList: string[] = [], baseDir: string = ''): string[] {

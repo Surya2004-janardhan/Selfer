@@ -13,13 +13,13 @@ export class Router {
     private toolRegistry: ToolRegistry;
     private orchestrator: Orchestrator;
 
-    constructor(private provider: LLMProvider) {
+    constructor(private provider: LLMProvider, modelName?: string) {
         SkillManager.init();
         this.mcpManager = new McpManager(process.cwd());
         this.toolRegistry = new ToolRegistry(this.mcpManager);
-        this.orchestrator = new Orchestrator(this.provider, this.toolRegistry);
+        this.orchestrator = new Orchestrator(this.provider, this.toolRegistry, modelName);
 
-        // Register all legacy agent tools
+        // Register all native agent tools
         NativeToolFactory.registerAll(this.toolRegistry, this.provider);
     }
 

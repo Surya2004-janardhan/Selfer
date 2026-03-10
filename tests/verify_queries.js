@@ -1,9 +1,9 @@
-const { Router } = require('./dist/core/Router');
-const { LLMProvider } = require('./dist/core/LLMProvider');
-const { GitAgent } = require('./dist/agents/GitAgent');
-    const { PlanAgent } = require('./dist/agents/PlanAgent');
-    const { FileAgent } = require('./dist/agents/FileAgent');
-    const { EditsAgent } = require('./dist/agents/EditsAgent');
+const { Router } = require('../dist/core/Router');
+const { LLMProvider } = require('../dist/core/LLMProvider');
+const { GitAgent } = require('../dist/agents/GitAgent');
+    const { PlanAgent } = require('../dist/agents/PlanAgent');
+    const { FileAgent } = require('../dist/agents/FileAgent');
+    const { EditsAgent } = require('../dist/agents/EditsAgent');
     require('dotenv').config();
     
     // We use the real provider here to see how it behaves with the user's setup (Gemini/Ollama)
@@ -12,8 +12,8 @@ const { GitAgent } = require('./dist/agents/GitAgent');
         console.log(`\n\n=== TESTING QUERY: "${query}" ===`);
         
         // Using the real provider from config if possible, else mock for logic check
-        const config = require('./.selfer/config.json');
-        const { GeminiProvider, OllamaProvider, FallbackLLMProvider } = require('./dist/core/LLMProvider');
+        const config = require('../.selfer/config.json');
+        const { GeminiProvider, OllamaProvider, FallbackLLMProvider } = require('../dist/core/LLMProvider');
         
         const providers = [];
         if (config.gemini?.apiKey) providers.push({ name: 'Gemini', provider: new GeminiProvider(config.gemini) });

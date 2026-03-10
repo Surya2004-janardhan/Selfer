@@ -1,16 +1,16 @@
-const { Router } = require('./dist/core/Router');
-const { LLMProvider, GeminiProvider, OllamaProvider, FallbackLLMProvider } = require('./dist/core/LLMProvider');
-const { GitAgent } = require('./dist/agents/GitAgent');
-const { PlanAgent } = require('./dist/agents/PlanAgent');
-const { FileAgent } = require('./dist/agents/FileAgent');
-const { EditsAgent } = require('./dist/agents/EditsAgent');
-const { ContextAgent } = require('./dist/agents/ContextAgent');
+const { Router } = require('../dist/core/Router');
+const { LLMProvider, GeminiProvider, OllamaProvider, FallbackLLMProvider } = require('../dist/core/LLMProvider');
+const { GitAgent } = require('../dist/agents/GitAgent');
+const { PlanAgent } = require('../dist/agents/PlanAgent');
+const { FileAgent } = require('../dist/agents/FileAgent');
+const { EditsAgent } = require('../dist/agents/EditsAgent');
+const { ContextAgent } = require('../dist/agents/ContextAgent');
 require('dotenv').config();
 
 async function verifyQuery(query, name) {
     console.log(`\n\n=== [${name}] TESTING QUERY: "${query}" ===`);
     
-    const config = require('./.selfer/config.json');
+    const config = require('../.selfer/config.json');
     const providers = [];
     if (config.gemini?.apiKey) providers.push({ name: 'Gemini', provider: new GeminiProvider(config.gemini) });
     if (config.ollama?.model) providers.push({ name: 'Ollama', provider: new OllamaProvider(config.ollama) });

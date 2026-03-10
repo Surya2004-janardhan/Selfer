@@ -1,3 +1,0 @@
-Here is a summary of the project actions:
-
-The README.md file was rewritten to describe Selfer as a multi-agent framework, and the changes were committed with the message "Rewrote README.md with meaningful content describing Selfer as a multi-agent framework". The commit was successfully pushed.

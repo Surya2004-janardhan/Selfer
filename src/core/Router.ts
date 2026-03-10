@@ -1,7 +1,9 @@
+import * as fs from 'fs';
 import { BaseAgent, AgentContext } from '../agents/BaseAgent';
-import { LLMProvider } from './LLMProvider';
+import { LLMProvider, LLMMessage } from './LLMProvider';
 import { CLIGui } from '../utils/CLIGui';
 import { SkillManager } from './SkillManager';
+import { RepoMap } from '../utils/RepoMap';
 import chalk from 'chalk';
 
 export class Router {
@@ -16,20 +18,23 @@ export class Router {
     }
 
     async routeTask(query: string, context: AgentContext) {
-        // Handle / commands
         if (query.startsWith('/')) {
-            const command = query.slice(1).toLowerCase();
-            if (command === 'skills') {
-                return SkillManager.getSkillsList();
-            }
+            const command = query.slice(1).toLowerCase().trim();
+            if (command === 'skills' || command === '') return SkillManager.getSkillsList();
             const skillContent = SkillManager.getSkillContent(command);
-            if (skillContent) {
-                return chalk.blue.bold(`--- Skill: ${command} ---\n`) + skillContent;
-            }
+            if (skillContent) return chalk.blue.bold(`--- Skill: ${command} ---\n`) + skillContent;
             return chalk.red(`Unknown command or skill: /${command}`);
         }
 
-        CLIGui.startLoader(`Thinking about: "${query}"`);
+        CLIGui.startLoader(`Planning: "${query}"`);
+
+        // Baseline Context: CLAUDE.md + Repo Map
+        let projectGuidelines = "";
+        if (fs.existsSync('CLAUDE.md')) {
+            projectGuidelines = `[PROJECT GUIDELINES]:\n${fs.readFileSync('CLAUDE.md', 'utf-8')}\n`;
+        }
+        const skeleton = RepoMap.getMap();
+        const baseContext = `${projectGuidelines}\n[REPOSITORY SKELETON]:\n${skeleton}\n`;
 
         const planAgent = this.agents.get('PlanAgent');
         if (!planAgent) {
@@ -37,54 +42,80 @@ export class Router {
             return "No plan agent found.";
         }
 
-        const plan = await planAgent.run(query, context);
+        const plan = await planAgent.run([{ role: 'user', content: `${baseContext}\nUSER REQUEST: ${query}` }], context);
 
         if (!Array.isArray(plan)) {
             CLIGui.stopLoader();
             return plan;
         }
 
-        CLIGui.updateLoader(`Plan generated with ${plan.length} steps. Executing...`);
+        CLIGui.updateLoader(`Executing plan (${plan.length} steps)...`);
 
         let finalResult = "";
         for (let i = 0; i < plan.length; i++) {
             const step = plan[i];
             const displayTask = step.task.length > 50 ? step.task.substring(0, 47) + '...' : step.task;
-            CLIGui.updateLoader(`Step ${i + 1}/${plan.length}: ${step.agent} -> ${displayTask}`);
 
             const agent = this.agents.get(step.agent);
             if (agent) {
-                // Refined Skill Injection: Only mention the expertise name to avoid hallucinations
-                const skillName = SkillManager.getSkillForAgent(step.agent);
-                const taskWithContext = skillName ? { task: step.task, expertise: skillName } : step.task;
+                // Explicit Skill Mention
+                let skillContext = "";
+                const skillMatch = query.match(/[\.@]([a-zA-Z0-9]+)/);
+                if (skillMatch) {
+                    const content = SkillManager.getSkillContent(skillMatch[1]);
+                    if (content) skillContext = `\n[EXPERT KNOWLEDGE: ${skillMatch[1]}]\n${content}\n`;
+                }
 
-                // We pass a more structured task or just the string to keep it clean
-                const result = await agent.run(typeof taskWithContext === 'string' ? taskWithContext : `${taskWithContext.task} (Focus: ${taskWithContext.expertise})`, context);
+                const progressContext = finalResult ? `\n[COMPLETED STEPS]:\n${finalResult}\n` : "";
+                const prompt = `--- ENVIRONMENT CONTEXT ---\n${baseContext}${skillContext}${progressContext}\n\n--- CURRENT INSTRUCTION ---\n${step.task}\n\nPerform the instruction using the assigned tools. If you use 'write_file', ensure the content is ONLY what belongs in the file.`;
 
-                // Sanitize result for the summary (limit size and remove potential raw noise)
-                const sanitizedResult = typeof result === 'string' ? result.substring(0, 200) : JSON.stringify(result).substring(0, 200);
-                finalResult += `\nStep ${i + 1} Result: ${sanitizedResult}`;
-            } else {
-                CLIGui.error(`Agent ${step.agent} not found for step ${i + 1}`);
+                let history: LLMMessage[] = [{ role: 'user', content: prompt }];
+                let stepTurn = 0;
+                let stepSummary = "";
+
+                while (stepTurn < 5) {
+                    stepTurn++;
+                    CLIGui.updateLoader(`Step ${i + 1}/${plan.length}: ${step.agent} Thinking (Turn ${stepTurn})...`);
+                    const agentResponse = await agent.run(history, context);
+                    history.push({ role: 'assistant', content: agentResponse });
+
+                    try {
+                        const start = agentResponse.indexOf('{');
+                        const end = agentResponse.lastIndexOf('}') + 1;
+
+                        if (start !== -1 && end !== -1 && end > start) {
+                            const jsonStr = agentResponse.substring(start, end);
+                            const parsed = JSON.parse(jsonStr);
+
+                            if (parsed.tool) {
+                                CLIGui.updateLoader(`Step ${i + 1}/${plan.length}: ${step.agent} executing ${parsed.tool}...`);
+                                const toolResult = await agent.executeTool(parsed.tool, parsed.args);
+                                const outStr = toolResult.success ? toolResult.output : `ERROR: ${toolResult.error}`;
+                                history.push({ role: 'user', content: `TOOL OUTPUT: ${outStr}\n\nProceed to next action or finish.` });
+                                stepSummary += `\n- ${parsed.tool}: ${toolResult.success ? 'success' : 'failed'}`;
+                                continue;
+                            }
+                        }
+                    } catch (e) { /* Summary response */ }
+
+                    stepSummary += `\n>> Result: ${agentResponse}`;
+                    break;
+                }
+
+                finalResult += `\nSTEP ${i + 1}: ${step.task}\n${stepSummary}\n`;
             }
         }
 
         CLIGui.stopLoader();
+        CLIGui.startLoader("Finalizing...");
 
-        // Generate human-like summary
-        CLIGui.startLoader("Thinking...");
-        const summaryPrompt = `You are Selfer, a helpful and friendly autonomous assistant. 
-    The user asked: "${query}"
-    You completed these actions: ${finalResult}
+        const summaryPrompt = `Summarize the following project actions for the user. 
+    User Request: "${query}"
+    Actions: ${finalResult}
     
-    Now, tell the user what you accomplished in a natural, conversational, and direct "human-to-human" way. 
-    Avoid sounding like a clinical report or listing "Step 1, Step 2". 
-    Just describe what you did and why it matters in about 4-5 lines. 
-    Start directly with the response, no "Here is a summary" or "Successfully executed".`;
+    Ensure you confirm if the task was completed successfully. Be concise.`;
 
         const summary = await this.provider.generateResponse([{ role: 'system', content: summaryPrompt }]);
-        CLIGui.stopLoader();
-
         return summary.content;
     }
 }

@@ -1,5 +1,7 @@
 import { BaseAgent, AgentContext } from './BaseAgent';
 import { CLIGui } from '../utils/CLIGui';
+import { LLMMessage } from '../core/LLMProvider';
+import { Tool, ToolResult } from '../core/ToolRegistry';
 import simpleGit from 'simple-git';
 
 export class GitAgent extends BaseAgent {
@@ -9,59 +11,86 @@ export class GitAgent extends BaseAgent {
         super('GitAgent', provider);
     }
 
-    async run(task: string, context: AgentContext): Promise<any> {
-        CLIGui.logAgentAction(this.name, task);
+    getTools(): Tool[] {
+        return [
+            {
+                name: 'git_status',
+                description: 'Shows the current status of the git repository.',
+                parameters: { type: 'object', properties: {}, required: [] }
+            },
+            {
+                name: 'git_diff',
+                description: 'Shows the diff of staged changes.',
+                parameters: { type: 'object', properties: {}, required: [] }
+            },
+            {
+                name: 'git_commit',
+                description: 'Commits staged changes with a message.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        message: { type: 'string', description: 'The commit message' }
+                    },
+                    required: ['message']
+                }
+            },
+            {
+                name: 'git_push',
+                description: 'Pushes changes to origin.',
+                parameters: { type: 'object', properties: {}, required: [] }
+            }
+        ];
+    }
 
+    async executeTool(name: string, args: any): Promise<ToolResult> {
         try {
-            const status = await this.git.status();
-
-            // Handle 'commit' task
-            if (task.toLowerCase().includes('commit')) {
-                const diff = await this.git.diff(['--cached', '--stat']);
-                if (status.files.length === 0 && !diff) {
-                    return "Git: Workspace is clean. Nothing to commit.";
-                }
-
-                await this.git.add('.');
-
-                // Use LLM to generate a tight 1-line commit message if the user didn't provide a specific one
-                let commitMsg = task.replace(/commit/gi, '').trim();
-                // If the message is generic or empty, generate from diff
-                if (commitMsg.length < 5 || commitMsg.toLowerCase().includes('latest changes') || commitMsg.toLowerCase().includes('changes')) {
-                    const detailedDiff = await this.git.diff(['--cached']);
-                    const msgResponse = await this.callLLM(
-                        "Generate a concise, professional 1-line conventional commit message (max 60 chars) based on this diff. Output ONLY the message.",
-                        detailedDiff.substring(0, 2000)
-                    );
-                    commitMsg = msgResponse.trim().replace(/^"|"$/g, ''); // Clean quotes
-                }
-
-                await this.git.commit(commitMsg);
-                return `Git: Successfully committed changes with message: "${commitMsg}"`;
+            switch (name) {
+                case 'git_status':
+                    const status = await this.git.status();
+                    return { success: true, output: JSON.stringify(status, null, 2) };
+                case 'git_diff':
+                    const diff = await this.git.diff(['--cached']);
+                    return { success: true, output: diff || "No staged changes to diff." };
+                case 'git_commit':
+                    await this.git.add('.');
+                    await this.git.commit(args.message);
+                    return { success: true, output: `Committed with message: ${args.message}` };
+                case 'git_push':
+                    await this.git.push();
+                    return { success: true, output: "Successfully pushed to origin." };
+                default:
+                    return { success: false, output: '', error: `Unknown tool: ${name}` };
             }
-
-            // Handle 'push' task
-            if (task.toLowerCase().includes('push')) {
-                const branch = status.current || 'main';
-                await this.git.push('origin', branch);
-                return `Git: Successfully pushed changes to origin/${branch}`;
-            }
-
-            // Handle 'branch' task
-            if (task.toLowerCase().includes('branch') || task.toLowerCase().includes('checkout')) {
-                const branchName = task.match(/branch\s+([a-zA-Z0-9\-_/]+)/i)?.[1] ||
-                    task.match(/checkout\s+([a-zA-Z0-9\-_/]+)/i)?.[1];
-                if (branchName) {
-                    await this.git.checkoutLocalBranch(branchName);
-                    return `Git: Created and checked out new branch: ${branchName}`;
-                }
-            }
-
-            // Generic status report
-            return `Git Status: ${status.files.length} modified files on branch ${status.current}`;
-        } catch (error: any) {
-            CLIGui.error(`GitAgent: ${error.message}`);
-            throw error;
+        } catch (e: any) {
+            return { success: false, output: '', error: e.message };
         }
+    }
+
+    async run(messages: LLMMessage[], context: AgentContext): Promise<any> {
+        const lastTask = messages[messages.length - 1].content;
+        CLIGui.logAgentAction(this.name, lastTask);
+
+        const systemPrompt = `Act as an expert software engineer generating concise, one-line Git commit messages.
+    Tools: ${JSON.stringify(this.getTools())}
+    
+    COMMIT RULES:
+    1. Always use Conventional Commits format: <type>: <description>
+    2. Types: fix, feat, build, chore, ci, docs, style, refactor, perf, test
+    3. Use imperative mood (e.g., "add feature" not "added" or "adding").
+    4. Max 72 characters.
+    
+    STRATEGY:
+    1. Call 'git_status' to see changed files.
+    2. Call 'git_diff' to see the exact staged changes.
+    3. Generate the commit message and call 'git_commit'.
+    4. Call 'git_push' if required by the plan.
+    
+    Output ONLY JSON with tool calls or a final summary.`;
+
+        const response = await this.provider.generateResponse([
+            { role: 'system', content: systemPrompt },
+            ...messages
+        ]);
+        return response.content;
     }
 }

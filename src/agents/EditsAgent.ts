@@ -1,5 +1,8 @@
 import { BaseAgent, AgentContext } from './BaseAgent';
 import { CLIGui } from '../utils/CLIGui';
+import { LLMMessage } from '../core/LLMProvider';
+import { Tool, ToolResult } from '../core/ToolRegistry';
+import { EditParser } from '../utils/EditParser';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -8,51 +11,115 @@ export class EditsAgent extends BaseAgent {
         super('EditsAgent', provider);
     }
 
-    async run(task: string, context: AgentContext): Promise<any> {
-        CLIGui.logAgentAction(this.name, task);
-
-        // Extract filename from task
-        const filenameMatch = task.match(/([a-zA-Z0-9_\-\.\/]+\.[a-zA-Z0-9]+)/);
-        const fileName = filenameMatch ? filenameMatch[1] : null;
-
-        if (!fileName) {
-            return "EditsAgent: Could not identify target filename in the task.";
-        }
-
-        const filePath = path.join(context.directory, fileName);
-        let existingContent = "";
-        if (fs.existsSync(filePath)) {
-            existingContent = fs.readFileSync(filePath, 'utf-8');
-        }
-
-        const systemPrompt = `You are the Production-Ready Edits-Agent for Selfer.
-    Your job is to generate the COMPLETE content for the file: ${fileName}.
-    
-    Current File Context (if exists):
-    ${existingContent}
-    
-    Task: ${task}
-    
-    Guidelines:
-    1. If the file exists, respect the existing code style and patterns.
-    2. Ensure the code is production-quality, documented, and type-safe.
-    3. Output ONLY the raw file content. No markdown code blocks, no preamble.`;
-
-        const newContent = await this.callLLM(systemPrompt, task);
-
-        try {
-            // Ensure directory exists
-            const dir = path.dirname(filePath);
-            if (!fs.existsSync(dir)) {
-                fs.mkdirSync(dir, { recursive: true });
+    getTools(): Tool[] {
+        return [
+            {
+                name: 'read_file',
+                description: 'Reads a file to understand its context before editing.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        path: { type: 'string', description: 'Relative path of the file' }
+                    },
+                    required: ['path']
+                }
+            },
+            {
+                name: 'apply_search_replace',
+                description: 'Applies robust Aider-style SEARCH/REPLACE blocks to one or more files.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        edits: {
+                            type: 'string',
+                            description: 'Text containing one or more SEARCH/REPLACE blocks. Include the full file path on a line before each block.'
+                        }
+                    },
+                    required: ['edits']
+                }
+            },
+            {
+                name: 'write_file',
+                description: 'Writes the full content to a file. Use this for complete rewrites or new files.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        path: { type: 'string', description: 'Relative path of the file' },
+                        content: { type: 'string', description: 'The NEW full content of the file' }
+                    },
+                    required: ['path', 'content']
+                }
             }
+        ];
+    }
 
-            fs.writeFileSync(filePath, newContent.trim());
-            const action = existingContent ? "Updated" : "Created";
-            return `${action} file "${fileName}" with ${newContent.split('\n').length} lines of code.`;
-        } catch (error: any) {
-            CLIGui.error(`EditsAgent: ${error.message}`);
-            throw error;
+    async executeTool(name: string, args: any): Promise<ToolResult> {
+        try {
+            switch (name) {
+                case 'read_file':
+                    const readPath = path.join(process.cwd(), args.path);
+                    if (!fs.existsSync(readPath)) return { success: false, output: '', error: `File not found: ${args.path}` };
+                    return { success: true, output: fs.readFileSync(readPath, 'utf-8') };
+
+                case 'apply_search_replace':
+                    const blocks = EditParser.parseBlocks(args.edits);
+                    if (blocks.length === 0) return { success: false, output: '', error: 'No valid SEARCH/REPLACE blocks found in input.' };
+
+                    const results = EditParser.applyBlocks(blocks);
+                    const failed = results.filter(r => !r.success);
+
+                    if (failed.length > 0) {
+                        return {
+                            success: false,
+                            output: JSON.stringify(results),
+                            error: `Failed to apply some edits: ${failed.map(f => `${f.filePath}: ${f.error}`).join(', ')}`
+                        };
+                    }
+                    return { success: true, output: `Successfully applied ${blocks.length} edit blocks.` };
+
+                case 'write_file':
+                    const writePath = path.join(process.cwd(), args.path);
+                    const dir = path.dirname(writePath);
+                    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+                    fs.writeFileSync(writePath, args.content);
+                    return { success: true, output: `Successfully wrote ${args.path}` };
+
+                default:
+                    return { success: false, output: '', error: `Unknown tool: ${name}` };
+            }
+        } catch (e: any) {
+            return { success: false, output: '', error: e.message };
         }
+    }
+
+    async run(messages: LLMMessage[], context: AgentContext): Promise<any> {
+        const lastTask = messages[messages.length - 1].content;
+        CLIGui.logAgentAction(this.name, lastTask);
+
+        const systemPrompt = `Act as an expert software developer. Support SEARCH/REPLACE edits.
+    To edit files, use the 'apply_search_replace' tool with blocks.
+    
+    RULES:
+    1. Blocks must be exact character-for-character matches.
+    2. NEVER include "ENVIRONMENT CONTEXT", instructions, or boilerplate in the SEARCH/REPLACE fields.
+    3. Use 'read_file' first to confirm exact file state.
+    
+    BLOCK FORMAT:
+    FILE_PATH
+    \`\`\`
+    <<<<<<< SEARCH
+    ...
+    =======
+    ...
+    >>>>>>> REPLACE
+    \`\`\`
+
+    Output ONLY JSON with tool calls or a final summary.`;
+
+        const response = await this.provider.generateResponse([
+            { role: 'system', content: systemPrompt },
+            ...messages
+        ]);
+        return response.content;
     }
 }

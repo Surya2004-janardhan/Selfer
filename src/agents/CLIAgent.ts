@@ -1,4 +1,5 @@
 import { BaseAgent, AgentContext } from './BaseAgent';
+import { LLMMessage } from '../core/LLMProvider';
 import * as readline from 'readline';
 import chalk from 'chalk';
 import * as fs from 'fs';
@@ -37,9 +38,13 @@ export class CLIAgent extends BaseAgent {
         });
     }
 
-    async run(task: string, context: AgentContext): Promise<any> {
-        const response = await this.callLLM("You are the CLI-Agent for Selfer. Assist the user with their query.", task);
-        return response;
+    async run(messages: LLMMessage[], context: AgentContext): Promise<any> {
+        const task = messages[messages.length - 1].content;
+        const response = await this.provider.generateResponse([
+            { role: 'system', content: "You are the CLI-Agent for Selfer. Assist the user friendly." },
+            ...messages
+        ]);
+        return response.content;
     }
 
     static async prompt(question: string): Promise<string> {

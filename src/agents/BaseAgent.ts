@@ -1,4 +1,5 @@
 import { LLMProvider, LLMMessage } from '../core/LLMProvider';
+import { Tool, ToolResult } from '../core/ToolRegistry';
 
 export interface AgentContext {
     directory: string;
@@ -12,7 +13,18 @@ export abstract class BaseAgent {
         protected provider: LLMProvider
     ) { }
 
-    abstract run(task: string, context: AgentContext): Promise<any>;
+    /**
+     * Refactored: Now takes messages for conversational memory
+     */
+    abstract run(messages: LLMMessage[], context: AgentContext): Promise<any>;
+
+    getTools(): Tool[] {
+        return [];
+    }
+
+    async executeTool(name: string, args: any): Promise<ToolResult> {
+        throw new Error(`Tool "${name}" not implemented in agent "${this.name}"`);
+    }
 
     protected async callLLM(systemPrompt: string, userQuery: string): Promise<string> {
         const messages: LLMMessage[] = [

@@ -1,10 +1,12 @@
 import { BaseAgent, AgentContext } from './BaseAgent';
-import { CLIGui } from '../utils/CLIGui';
+import { LLMMessage } from '../core/LLMProvider';
 
 export class CodeAgent extends BaseAgent {
-    constructor(provider: any) { super('CodeAgent', provider); }
-    async run(task: string, context: AgentContext): Promise<any> {
-        CLIGui.logAgentAction(this.name, `Executing: ${task}`);
-        return `Simulated Code Action: ${task}`;
+    constructor(provider: any) {
+        super('CodeAgent', provider);
+    }
+
+    async run(messages: LLMMessage[], context: AgentContext): Promise<any> {
+        return "Code analysis functionality not yet fully implemented.";
     }
 }

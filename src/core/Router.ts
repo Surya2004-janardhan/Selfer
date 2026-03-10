@@ -187,11 +187,20 @@ export class Router {
                         }
                     } catch (e) { /* Summary response */ }
 
-                    // Zero-Tool Detection
-                    const exemptAgents = ['CLIAgent', 'MemoryAgent'];
-                    if (!toolUsedInStep && !exemptAgents.includes(step.agent) && stepTurn < 3) {
+                    // Verbal Instruction Detection
+                    const instructionalPhrases = ['step 1', 'you should', 'to do this', 'first,', 'then,', 'finally,', 'run the command'];
+                    const isInstructional = instructionalPhrases.some(p => agentResponse.toLowerCase().includes(p));
+
+                    // Zero-Tool Detection & verbal instruction pushback
+                    const exemptAgents = ['CLIAgent', 'MemoryAgent', 'ContextAgent'];
+                    const needsAction = !exemptAgents.includes(step.agent);
+
+                    if (needsAction && !toolUsedInStep && (isInstructional || stepTurn < 3)) {
                         history.push({ role: 'assistant', content: agentResponse });
-                        history.push({ role: 'user', content: `[SYSTEM ALERT]: You have not executed any tools for this step. As the ${step.agent}, you MUST perform the task using your tools rather than just giving instructions. Please try again.` });
+                        const alert = isInstructional
+                            ? `[SYSTEM ALERT]: You are giving instructions instead of executing tools. You must call a tool (JSON) to perform the task. Do NOT provide "how-to" advice.`
+                            : `[SYSTEM ALERT]: No tool call detected. As the ${step.agent}, you MUST perform the task using your tools. Proceed with JSON.`;
+                        history.push({ role: 'user', content: alert });
                         continue;
                     }
 

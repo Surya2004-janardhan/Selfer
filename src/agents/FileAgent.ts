@@ -91,6 +91,9 @@ export class FileAgent extends BaseAgent {
                     return { success: true, output: content };
 
                 case 'write_file':
+                    if (args.content === undefined) {
+                        return { success: false, output: '', error: 'Missing required argument: content. You must provide the FULL file content.' };
+                    }
                     const dir = path.dirname(fullPath);
                     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
                     fs.writeFileSync(fullPath, args.content);
@@ -126,11 +129,12 @@ export class FileAgent extends BaseAgent {
     1. NEVER provide "how-to" advice or instructions.
     2. NEVER output a list of steps.
     3. You must execute 'write_file' if the user asks to create or update a file.
+    4. For 'write_file', you MUST provide the FULL content of the file in the 'content' argument. Do not leave it empty.
     
     TOOLS: ${JSON.stringify(this.getTools())}
     
     OUTPUT FORMAT:
-    {"tool": "tool_name", "args": {...}}
+    {"tool": "tool_name", "args": {"path": "...", "content": "..."}}
     
     (Reasoning is allowed ONLY inside a <reasoning> tag before the JSON).`;
 

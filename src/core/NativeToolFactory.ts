@@ -7,6 +7,7 @@ import { CodeAgent } from '../agents/CodeAgent';
 import { WebAgent } from '../agents/WebAgent';
 import { BrowserAgent } from '../agents/BrowserAgent';
 import { MemoryAgent } from '../agents/MemoryAgent';
+import { TaskAgent } from '../agents/TaskAgent';
 
 import { ReviewAgent } from '../agents/ReviewAgent';
 import { TelegramAgent } from '../agents/TelegramAgent';
@@ -26,6 +27,7 @@ export class NativeToolFactory {
             new WebAgent(provider),
             new BrowserAgent(provider),
             new MemoryAgent(provider),
+            new TaskAgent(provider),
             new ReviewAgent(provider),
             new TelegramAgent(provider),
             new ContextAgent(provider),

@@ -1,7 +1,9 @@
 import { LLMProvider, LLMMessage } from './LLMProvider';
 import { ToolRegistry, ToolResult } from './ToolRegistry';
+import { SystemPromptBuilder } from './SystemPromptBuilder';
 import { CLIGui } from '../utils/CLIGui';
 import chalk from 'chalk';
+import * as os from 'os';
 
 export class Orchestrator {
     private maxTurns = 25;
@@ -12,8 +14,17 @@ export class Orchestrator {
     ) { }
 
     async execute(query: string, context: any): Promise<string> {
+        const systemPrompt = SystemPromptBuilder.build({
+            cwd: process.cwd(),
+            platform: os.platform(),
+            shell: process.env.SHELL || 'cmd.exe',
+            date: new Date().toISOString().split('T')[0],
+            tools: this.toolRegistry.getAllToolDefinitions(),
+            activeTerminals: [] // Could be populated in a more complex setup
+        });
+
         let messages: LLMMessage[] = [
-            { role: 'system', content: this.getSystemPrompt() },
+            { role: 'system', content: systemPrompt },
             { role: 'user', content: query }
         ];
 
@@ -23,20 +34,31 @@ export class Orchestrator {
         while (turn < this.maxTurns) {
             turn++;
             CLIGui.info(`Turn ${turn}/${this.maxTurns}...`);
-            CLIGui.info(`System Prompt Tools count: ${this.toolRegistry.getAllToolDefinitions().length}`);
 
             const response = await this.provider.generateResponse(messages);
-
             messages.push({ role: 'assistant', content: response.content });
 
-            // Parse tool calls from the response
-            const toolCalls = this.parseToolCalls(response.content);
+            // Parse XML-style tool calls
+            const toolCalls = this.parseXmlToolCalls(response.content);
             if (toolCalls.length === 0) {
                 finalResponse = response.content;
                 break;
             }
 
+            let shouldTerminate = false;
             for (const call of toolCalls) {
+                if (call.name === 'attempt_completion') {
+                    shouldTerminate = true;
+                    finalResponse = call.arguments.result;
+                    if (call.arguments.command) {
+                        finalResponse += `\n\nSuggested verification command: \`${call.arguments.command}\``;
+                    }
+                }
+                if (call.name === 'ask_followup_question') {
+                    shouldTerminate = true;
+                    finalResponse = `Question to user: ${call.arguments.question}`;
+                }
+
                 try {
                     CLIGui.info(`Executing tool: ${chalk.cyan(call.name)}`);
                     const result: ToolResult = await this.toolRegistry.executeTool(call.name, call.arguments);
@@ -47,7 +69,7 @@ export class Orchestrator {
 
                     messages.push({
                         role: 'user',
-                        content: `Tool ${call.name} result: ${resultStr}`
+                        content: `[Observation] Tool '${call.name}' result:\n${resultStr}`
                     });
 
                     if (result.success) {
@@ -59,57 +81,45 @@ export class Orchestrator {
                     CLIGui.error(`Critical tool execution failure: ${error.message}`);
                     messages.push({
                         role: 'user',
-                        content: `Tool ${call.name} critical failure: ${error.message}`
+                        content: `[Observation] Tool '${call.name}' critical failure: ${error.message}`
                     });
                 }
             }
+
+            if (shouldTerminate) break;
         }
 
         return finalResponse || "I reached the maximum number of turns without a final response.";
     }
 
-    private getSystemPrompt(): string {
-        const tools = this.toolRegistry.getAllToolDefinitions();
-        return `You are Selfer, an advanced AI orchestrator inspired by Cline and Aider.
-Your goal is to solve the user's task by using the provided tools in a continuous loop.
-
-AVAILABLE TOOLS:
-${JSON.stringify(tools, null, 2)}
-
-CORE PRINCIPLES:
-1. EXPLORE: If you don't have enough information, use search or read tools first.
-2. ACT: Perform discrete actions (write file, commit, etc.) one by one.
-3. OBSERVE: Analyze the results of your actions. If a tool fails, try to understand why and correct it.
-4. REASON: Before calling a tool, explain your reasoning in natural language.
-
-OUTPUT FORMAT:
-To use a tool, you MUST wrap the tool call in <tool_call> tags.
-Example:
-<tool_call>
-{
-  "name": "write_file",
-  "arguments": { "path": "test.txt", "content": "hello world" }
-}
-</tool_call>
-
-You can call multiple tools in one turn if they are independent.
-Once you have fully completed the task, provide a concise summary of your actions as your final response.`;
-    }
-
-    private parseToolCalls(content: string): any[] {
+    private parseXmlToolCalls(content: string): any[] {
         const toolCalls: any[] = [];
-        const regex = /<tool_call>([\s\S]*?)<\/tool_call>/g;
-        let match;
-        while ((match = regex.exec(content)) !== null) {
-            try {
-                const call = JSON.parse(match[1].trim());
-                if (call.name && call.arguments) {
-                    toolCalls.push(call);
+        const tools = this.toolRegistry.getAllToolDefinitions();
+
+        for (const tool of tools) {
+            const pattern = new RegExp(`<${tool.name}>([\\s\\S]*?)</${tool.name}>`, 'g');
+            let match;
+            while ((match = pattern.exec(content)) !== null) {
+                const innerContent = match[1];
+                const args: any = {};
+
+                // Parse arguments like <arg_name>value</arg_name>
+                const argNames = Object.keys(tool.parameters.properties || {});
+                for (const argName of argNames) {
+                    const argPattern = new RegExp(`<${argName}>([\\s\\S]*?)</${argName}>`, 'i');
+                    const argMatch = argPattern.exec(innerContent);
+                    if (argMatch) {
+                        args[argName] = argMatch[1].trim();
+                    }
                 }
-            } catch (e) {
-                CLIGui.error("Failed to parse tool call JSON: " + match[1]);
+
+                toolCalls.push({
+                    name: tool.name,
+                    arguments: args
+                });
             }
         }
+
         return toolCalls;
     }
 }

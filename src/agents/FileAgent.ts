@@ -129,7 +129,8 @@ export class FileAgent extends BaseAgent {
     1. NEVER provide "how-to" advice or instructions.
     2. NEVER output a list of steps.
     3. You must execute 'write_file' if the user asks to create or update a file.
-    4. For 'write_file', you MUST provide the FULL content of the file in the 'content' argument. Do not leave it empty.
+    4. For 'write_file', you MUST extract the exact file path requested in the prompt. NEVER use placeholders like "path_to_file" or "file.txt".
+    5. For 'write_file', you MUST provide the FULL, valid requested content of the file in the 'content' argument. NEVER use placeholders like "content_to_write".
     
     TOOLS: ${JSON.stringify(this.getTools())}
     

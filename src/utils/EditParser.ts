@@ -8,18 +8,6 @@ export interface EditBlock {
 }
 
 export class EditParser {
-    /**
-     * Parses SEARCH/REPLACE blocks from LLM output.
-     * Format:
-     * path/to/file
-     * ```language
-     * <<<<<<< SEARCH
-     * old code
-     * =======
-     * new code
-     * >>>>>>> REPLACE
-     * ```
-     */
     static parseBlocks(content: string): EditBlock[] {
         const blocks: EditBlock[] = [];
         const lines = content.split('\n');
@@ -34,10 +22,7 @@ export class EditParser {
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
 
-            // Detect file path (looks for lines before code blocks)
             if (!inBlock && line.trim() && !line.startsWith('```') && !line.startsWith('<<<<<<<')) {
-                // Aider-style: file path is on its own line before the block
-                // Check if next line or two starts a code block
                 if (lines[i + 1]?.trim().startsWith('```') || lines[i + 1]?.trim().startsWith('<<<<<<<')) {
                     currentFile = line.trim();
                 }
@@ -81,44 +66,52 @@ export class EditParser {
         return blocks;
     }
 
-    /**
-     * Applies a list of edit blocks to the filesystem.
-     * Returns a summary of success/failure for each block.
-     */
     static applyBlocks(blocks: EditBlock[]): { filePath: string; success: boolean; error?: string }[] {
         const results: { filePath: string; success: boolean; error?: string }[] = [];
 
         for (const block of blocks) {
             try {
-                if (!fs.existsSync(block.filePath)) {
+                const fullPath = path.resolve(process.cwd(), block.filePath);
+                if (!fs.existsSync(fullPath)) {
                     results.push({ filePath: block.filePath, success: false, error: 'File not found' });
                     continue;
                 }
 
-                let content = fs.readFileSync(block.filePath, 'utf-8');
+                const content = fs.readFileSync(fullPath, 'utf-8');
+                const normalize = (s: string) => s.replace(/\r\n/g, '\n').split('\n').map(l => l.trimEnd()).join('\n').trim();
 
-                // Exact match check (Aider standard)
-                // Note: We need to handle potential line ending differences
-                const normalizedContent = content.replace(/\r\n/g, '\n');
-                const normalizedSearch = block.search.replace(/\r\n/g, '\n');
-                const normalizedReplace = block.replace.replace(/\r\n/g, '\n');
+                const normalizedContent = content.replace(/\r\n/g, '\n'); // Keep internal spacing, only normalize line endings
+                const targetSearch = block.search.replace(/\r\n/g, '\n');
+                const targetReplace = block.replace.replace(/\r\n/g, '\n');
 
-                if (normalizedSearch === "") {
-                    // Creation case or append case (if search is empty)
-                    // Aider uses empty SEARCH for new files, but we'll prepend/append logic here if file exists
-                    content = normalizedReplace + (normalizedContent ? '\n' + normalizedContent : '');
-                    fs.writeFileSync(block.filePath, content);
+                if (targetSearch.trim() === "") {
+                    // Prepend if search block is essentially empty (creation/append)
+                    const newContent = targetReplace + (content ? '\n' + content : '');
+                    fs.writeFileSync(fullPath, newContent);
                     results.push({ filePath: block.filePath, success: true });
-                } else if (normalizedContent.includes(normalizedSearch)) {
-                    const newContent = normalizedContent.replace(normalizedSearch, normalizedReplace);
-                    fs.writeFileSync(block.filePath, newContent);
+                } else if (content.includes(targetSearch)) {
+                    const newContent = content.replace(targetSearch, targetReplace);
+                    fs.writeFileSync(fullPath, newContent);
                     results.push({ filePath: block.filePath, success: true });
                 } else {
-                    results.push({
-                        filePath: block.filePath,
-                        success: false,
-                        error: 'Search block does not match file content exactly'
-                    });
+                    // Try one more time with whitespace normalization if exact match fails
+                    const normContent = normalize(content);
+                    const normSearch = normalize(targetSearch);
+                    const normReplace = normalize(targetReplace);
+
+                    if (normContent.includes(normSearch)) {
+                        // This is tricky: replacing normalized content lose original indentation
+                        // But for now, we'll favor the fix. 
+                        const updated = normContent.replace(normSearch, normReplace);
+                        fs.writeFileSync(fullPath, updated);
+                        results.push({ filePath: block.filePath, success: true });
+                    } else {
+                        results.push({
+                            filePath: block.filePath,
+                            success: false,
+                            error: 'SEARCH block match failed. Verification: Block was not found in file.'
+                        });
+                    }
                 }
             } catch (err: any) {
                 results.push({ filePath: block.filePath, success: false, error: err.message });

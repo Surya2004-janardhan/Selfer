@@ -100,63 +100,70 @@ export class Core {
             return;
         }
 
-        const mainProvider = new FallbackLLMProvider(providersList);
-        const router = new Router(mainProvider);
-        const memoryStore = new MemoryStore(process.cwd());
+        try {
+            const mainProvider = new FallbackLLMProvider(providersList);
+            const router = new Router(mainProvider);
+            const memoryStore = new MemoryStore(process.cwd());
 
-        // Register Agents with the fallback provider
-        router.registerAgent(new PlanAgent(mainProvider));
-        router.registerAgent(new CLIAgent(mainProvider));
-        router.registerAgent(new GitAgent(mainProvider));
+            // Register Agents with the fallback provider
+            router.registerAgent(new PlanAgent(mainProvider));
+            router.registerAgent(new CLIAgent(mainProvider));
+            router.registerAgent(new GitAgent(mainProvider));
+            router.registerAgent(new FileAgent(mainProvider));
+            router.registerAgent(new WebAgent(mainProvider));
+            router.registerAgent(new CodeAgent(mainProvider));
+            router.registerAgent(new ReviewAgent(mainProvider));
+            router.registerAgent(new EditsAgent(mainProvider));
+            router.registerAgent(new PermissionAgent(mainProvider));
+            router.registerAgent(new TelegramAgent(mainProvider));
+            router.registerAgent(new ContextAgent(mainProvider));
+            router.registerAgent(new SubProcessAgent(mainProvider));
+            router.registerAgent(new TrackingAgent(mainProvider));
+            router.registerAgent(new ErrorRecoveryAgent(mainProvider));
+            router.registerAgent(new ErrorTrackerAgent(mainProvider));
+            router.registerAgent(new BrowserAgent(mainProvider));
+            router.registerAgent(new MemoryAgent(mainProvider));
 
-        // ... (rest of registration)
-        router.registerAgent(new FileAgent(mainProvider));
-        router.registerAgent(new WebAgent(mainProvider));
-        router.registerAgent(new CodeAgent(mainProvider));
-        router.registerAgent(new ReviewAgent(mainProvider));
-        router.registerAgent(new EditsAgent(mainProvider));
-        router.registerAgent(new PermissionAgent(mainProvider));
-        router.registerAgent(new TelegramAgent(mainProvider));
-        router.registerAgent(new ContextAgent(mainProvider));
-        router.registerAgent(new SubProcessAgent(mainProvider));
-        router.registerAgent(new TrackingAgent(mainProvider));
-        router.registerAgent(new ErrorRecoveryAgent(mainProvider));
-        router.registerAgent(new ErrorTrackerAgent(mainProvider));
-        router.registerAgent(new BrowserAgent(mainProvider));
-        router.registerAgent(new MemoryAgent(mainProvider));
+            CLIGui.info(`Configured Providers: ${chalk.cyan(providersList.map(p => p.name).join(', '))}`);
+            CLIGui.info('Starting chat interface...');
 
-        CLIGui.info(`Configured Providers: ${chalk.cyan(providersList.map(p => p.name).join(', '))}`);
-        CLIGui.info('Starting chat interface...');
+            const context = {
+                directory: process.cwd(),
+                sessionMemory: {},
+                config: config
+            };
 
-        const context = {
-            directory: process.cwd(),
-            sessionMemory: {}, // To be loaded from memoryStore
-            config: config
-        };
-
-        // Main Chat Loop
-        while (true) {
-            const userInput = await CLIAgent.prompt('What can I help you with?');
-            if (userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
-                CLIGui.info('Exiting Selfer. Goodbye Master!');
-                break;
-            }
-
-            try {
-                const result = await router.routeTask(userInput, context);
-                console.log(chalk.blue('\nSelfer > ') + chalk.white(result) + '\n');
-
-                // Save session memory and check for consolidation
-                await memoryStore.saveSession({ query: userInput, response: result });
-
-                // Intelligent context update if enough sessions
-                const memory = JSON.parse(fs.readFileSync(path.join(this.SELFER_DIR, 'memory.json'), 'utf-8'));
-                if (memory.sessions.length >= 5) {
-                    await memoryStore.updateContext(mainProvider);
+            // Main Chat Loop
+            while (true) {
+                const userInput = await CLIAgent.prompt('What can I help you with?');
+                if (!userInput || userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
+                    CLIGui.info('Exiting Selfer. Goodbye Master!');
+                    break;
                 }
-            } catch (error: any) {
-                CLIGui.error(`Task execution failed: ${error.message}`);
+
+                try {
+                    const result = await router.routeTask(userInput, context);
+                    console.log(chalk.blue('\nSelfer > ') + chalk.white(result) + '\n');
+
+                    // Save session memory
+                    await memoryStore.saveSession({ query: userInput, response: result });
+
+                    // Intelligent context update if enough sessions
+                    const memoryPath = path.join(this.SELFER_DIR, 'memory.json');
+                    if (fs.existsSync(memoryPath)) {
+                        const memory = JSON.parse(fs.readFileSync(memoryPath, 'utf-8'));
+                        if (memory.sessions.length >= 5) {
+                            CLIGui.info('Consolidating memory...');
+                            await memoryStore.updateContext(mainProvider);
+                        }
+                    }
+                } catch (error: any) {
+                    CLIGui.error(`Task execution failed: ${error.message}`);
+                }
             }
+        } catch (error: any) {
+            CLIGui.error(`Critical failure in start loop: ${error.message}`);
+            process.exit(1);
         }
     }
 }

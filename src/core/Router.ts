@@ -4,6 +4,8 @@ import { LLMProvider, LLMMessage } from './LLMProvider';
 import { CLIGui } from '../utils/CLIGui';
 import { SkillManager } from './SkillManager';
 import { RepoMap } from '../utils/RepoMap';
+import { ToolValidator } from '../utils/ToolValidator';
+import { ContextGuard } from '../utils/ContextGuard';
 import chalk from 'chalk';
 
 export class Router {
@@ -33,8 +35,10 @@ export class Router {
         if (fs.existsSync('CLAUDE.md')) {
             projectGuidelines = `[PROJECT GUIDELINES]:\n${fs.readFileSync('CLAUDE.md', 'utf-8')}\n`;
         }
-        const skeleton = RepoMap.getMap();
-        const baseContext = `${projectGuidelines}\n[REPOSITORY SKELETON]:\n${skeleton}\n`;
+
+        const fullSkeleton = RepoMap.getMap();
+        const minimalTree = RepoMap.getTree();
+        const baseContext = `${projectGuidelines}\n[REPOSITORY SKELETON]:\n${fullSkeleton}\n`;
 
         const planAgent = this.agents.get('PlanAgent');
         if (!planAgent) {
@@ -42,11 +46,45 @@ export class Router {
             return "No plan agent found.";
         }
 
-        const plan = await planAgent.run([{ role: 'user', content: `${baseContext}\nUSER REQUEST: ${query}` }], context);
+        let plan: any[] = [];
+        let planRetries = 0;
+        let planningQuery = query;
+        let rawPlanResponse = "";
 
-        if (!Array.isArray(plan)) {
+        while (planRetries < 2) {
+            const resp = await planAgent.run([{ role: 'user', content: `${baseContext}\nUSER REQUEST: ${planningQuery}` }], context);
+            rawPlanResponse = typeof resp === 'string' ? resp : JSON.stringify(resp);
+
+            try {
+                let jsonStr = rawPlanResponse;
+                const codeBlockMatch = rawPlanResponse.match(/```json\s*([\s\S]*?)```/);
+                if (codeBlockMatch) {
+                    jsonStr = codeBlockMatch[1];
+                } else {
+                    const start = rawPlanResponse.indexOf('[');
+                    const end = rawPlanResponse.lastIndexOf(']') + 1;
+                    if (start !== -1 && end !== -1 && end >= start) {
+                        jsonStr = rawPlanResponse.substring(start, end);
+                    }
+                }
+
+                const parsed = JSON.parse(jsonStr);
+                if (Array.isArray(parsed)) {
+                    plan = parsed;
+                    break;
+                }
+            } catch (e) { /* malformed */ }
+
+            planRetries++;
+            if (planRetries < 2) {
+                CLIGui.updateLoader(`Plan malformed. Retrying (${planRetries}/1)...`);
+                planningQuery += `\n\n[SYSTEM ALERT]: Your previous response was not a valid JSON array. Please ensure your output is ONLY a JSON array like: [ { "agent": "...", "task": "..." } ]`;
+            }
+        }
+
+        if (plan.length === 0) {
             CLIGui.stopLoader();
-            return plan;
+            return chalk.red(`[ERROR]: Failed to generate a valid execution plan after retries.\n\nRAW RESPONSE:\n${rawPlanResponse}`);
         }
 
         CLIGui.updateLoader(`Executing plan (${plan.length} steps)...`);
@@ -54,11 +92,17 @@ export class Router {
         let finalResult = "";
         for (let i = 0; i < plan.length; i++) {
             const step = plan[i];
-            const displayTask = step.task.length > 50 ? step.task.substring(0, 47) + '...' : step.task;
-
             const agent = this.agents.get(step.agent);
             if (agent) {
-                // Explicit Skill Mention
+                // Targeted Context Pruning
+                let workerContext = minimalTree;
+
+                const taskFiles = step.task.match(/[a-zA-Z0-9.\-_/]+\.(ts|js|md|json|txt)/g) || [];
+                taskFiles.forEach((file: string) => {
+                    const sigs = RepoMap.getFileSignatures(file);
+                    if (sigs) workerContext += `\n${sigs}`;
+                });
+
                 let skillContext = "";
                 const skillMatch = query.match(/[\.@]([a-zA-Z0-9]+)/);
                 if (skillMatch) {
@@ -67,36 +111,89 @@ export class Router {
                 }
 
                 const progressContext = finalResult ? `\n[COMPLETED STEPS]:\n${finalResult}\n` : "";
-                const prompt = `--- ENVIRONMENT CONTEXT ---\n${baseContext}${skillContext}${progressContext}\n\n--- CURRENT INSTRUCTION ---\n${step.task}\n\nPerform the instruction using the assigned tools. If you use 'write_file', ensure the content is ONLY what belongs in the file.`;
+                const contextToUse = (step.agent === 'ContextAgent' || step.agent === 'PlanAgent') ? fullSkeleton : workerContext;
+                const envContext = `${projectGuidelines}\n[ENVIRONMENT CONTEXT]:\n${contextToUse}${skillContext}${progressContext}`;
+                const prompt = `${envContext}\n\n--- CURRENT INSTRUCTION ---\n${step.task}\n\nPerform the instruction using the assigned tools. Reasoning is encouraged but ensure the tool call is valid JSON.`;
 
                 let history: LLMMessage[] = [{ role: 'user', content: prompt }];
                 let stepTurn = 0;
                 let stepSummary = "";
+                let toolUsedInStep = false;
 
                 while (stepTurn < 5) {
                     stepTurn++;
-                    CLIGui.updateLoader(`Step ${i + 1}/${plan.length}: ${step.agent} Thinking (Turn ${stepTurn})...`);
+                    CLIGui.updateLoader(`Step ${i + 1}/${plan.length}: ${step.agent} Thinking...`);
                     const agentResponse = await agent.run(history, context);
-                    history.push({ role: 'assistant', content: agentResponse });
+
+                    const reasoningMatch = agentResponse.match(/<reasoning>([\s\S]*?)<\/reasoning>/);
+                    if (reasoningMatch) {
+                        CLIGui.logReasoning(reasoningMatch[1].trim());
+                    }
 
                     try {
-                        const start = agentResponse.indexOf('{');
-                        const end = agentResponse.lastIndexOf('}') + 1;
-
-                        if (start !== -1 && end !== -1 && end > start) {
-                            const jsonStr = agentResponse.substring(start, end);
-                            const parsed = JSON.parse(jsonStr);
-
-                            if (parsed.tool) {
-                                CLIGui.updateLoader(`Step ${i + 1}/${plan.length}: ${step.agent} executing ${parsed.tool}...`);
-                                const toolResult = await agent.executeTool(parsed.tool, parsed.args);
-                                const outStr = toolResult.success ? toolResult.output : `ERROR: ${toolResult.error}`;
-                                history.push({ role: 'user', content: `TOOL OUTPUT: ${outStr}\n\nProceed to next action or finish.` });
-                                stepSummary += `\n- ${parsed.tool}: ${toolResult.success ? 'success' : 'failed'}`;
-                                continue;
+                        let jsonStr = agentResponse;
+                        const codeBlockMatch = agentResponse.match(/```json\s*([\s\S]*?)```/);
+                        if (codeBlockMatch) {
+                            jsonStr = codeBlockMatch[1];
+                        } else {
+                            const start = agentResponse.indexOf('{');
+                            const end = agentResponse.lastIndexOf('}') + 1;
+                            if (start !== -1 && end !== -1 && end > start) {
+                                jsonStr = agentResponse.substring(start, end);
                             }
                         }
+
+                        const parsed = JSON.parse(jsonStr);
+
+                        if (parsed && typeof parsed === 'object' && parsed.tool) {
+                            toolUsedInStep = true;
+                            const tools = agent.getTools();
+                            const toolDef = tools.find(t => t.name === parsed.tool);
+                            if (toolDef) {
+                                const validation = ToolValidator.validate(toolDef, parsed.args);
+                                if (!validation.valid) {
+                                    history.push({ role: 'assistant', content: agentResponse });
+                                    history.push({ role: 'user', content: `VALIDATION ERROR: ${validation.error}. Please correct your tool call.` });
+                                    continue;
+                                }
+                            }
+
+                            CLIGui.logAgentAction(step.agent, `Executing ${parsed.tool}...`);
+                            let toolResult = await agent.executeTool(parsed.tool, parsed.args);
+
+                            if (toolResult.success) {
+                                toolResult.output = ContextGuard.wrapOutput(toolResult.output);
+                            }
+
+                            if (!toolResult.success) {
+                                const recoveryAgent = this.agents.get('ErrorRecoveryAgent');
+                                if (recoveryAgent) {
+                                    CLIGui.logAgentAction(step.agent, `${chalk.red('Failed')}. Consulting Recovery Agent...`);
+                                    const recoveryAdvice = await recoveryAgent.run([
+                                        { role: 'user', content: `Failed Tool: ${parsed.tool}\nError: ${toolResult.error}\nIntent: ${step.task}` }
+                                    ], context);
+                                    history.push({ role: 'assistant', content: agentResponse });
+                                    history.push({ role: 'user', content: `TOOL ERROR: ${toolResult.error}\nRECOVERY ADVICE: ${recoveryAdvice}\n\nPlease try again.` });
+                                    stepSummary += `\n- ${parsed.tool}: failed (recovery advised)`;
+                                    continue;
+                                }
+                            }
+
+                            const outStr = toolResult.success ? toolResult.output : `ERROR: ${toolResult.error}`;
+                            history.push({ role: 'assistant', content: agentResponse });
+                            history.push({ role: 'user', content: `TOOL OUTPUT: ${outStr}\n\nProceed to next action or finish.` });
+                            stepSummary += `\n- ${parsed.tool}: ${toolResult.success ? 'success' : 'failed'}`;
+                            continue;
+                        }
                     } catch (e) { /* Summary response */ }
+
+                    // Zero-Tool Detection
+                    const exemptAgents = ['CLIAgent', 'MemoryAgent'];
+                    if (!toolUsedInStep && !exemptAgents.includes(step.agent) && stepTurn < 2) {
+                        history.push({ role: 'assistant', content: agentResponse });
+                        history.push({ role: 'user', content: `[SYSTEM ALERT]: You have not executed any tools for this step. As the ${step.agent}, you MUST perform the task using your tools rather than just giving instructions. Please try again.` });
+                        continue;
+                    }
 
                     stepSummary += `\n>> Result: ${agentResponse}`;
                     break;
@@ -116,6 +213,8 @@ export class Router {
     Ensure you confirm if the task was completed successfully. Be concise.`;
 
         const summary = await this.provider.generateResponse([{ role: 'system', content: summaryPrompt }]);
+        CLIGui.stopLoader();
+
         return summary.content;
     }
 }

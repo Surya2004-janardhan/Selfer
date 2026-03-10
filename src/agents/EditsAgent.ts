@@ -93,28 +93,29 @@ export class EditsAgent extends BaseAgent {
     }
 
     async run(messages: LLMMessage[], context: AgentContext): Promise<any> {
-        const lastTask = messages[messages.length - 1].content;
-        CLIGui.logAgentAction(this.name, lastTask);
-
-        const systemPrompt = `Act as an expert software developer. Support SEARCH/REPLACE edits.
-    To edit files, use the 'apply_search_replace' tool with blocks.
+        const systemPrompt = `You are Selfer's code modification expert (EditsAgent).
+    You MUST apply the requested code changes using your SEARCH/REPLACE tools.
     
-    RULES:
-    1. Blocks must be exact character-for-character matches.
-    2. NEVER include "ENVIRONMENT CONTEXT", instructions, or boilerplate in the SEARCH/REPLACE fields.
-    3. Use 'read_file' first to confirm exact file state.
+    CRITICAL RULE: NEVER provide "how-to" instructions or explain what the user needs to change.
+    You are the one who modifies the code. If asked to fix a bug or add a feature, you call 'apply_search_replace'.
     
-    BLOCK FORMAT:
+    TOOLS: ${JSON.stringify(this.getTools(), null, 2)}
+    
+    STRATEGY:
+    1. READ: Always 'read_file' first to get the exact lines and indentation.
+    2. EDIT: Call 'apply_search_replace' with one or more SEARCH/REPLACE blocks.
+    
+    BLOCK FORMAT (for 'edits' argument):
     FILE_PATH
     \`\`\`
     <<<<<<< SEARCH
-    ...
+    (exact lines)
     =======
-    ...
+    (new lines)
     >>>>>>> REPLACE
     \`\`\`
-
-    Output ONLY JSON with tool calls or a final summary.`;
+    
+    Reasoning is allowed IN ADDITION TO (not instead of) a JSON tool call.`;
 
         const response = await this.provider.generateResponse([
             { role: 'system', content: systemPrompt },

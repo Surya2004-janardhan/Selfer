@@ -31,6 +31,10 @@ export class OllamaProvider extends LLMProvider {
                 stream: false
             });
 
+            if (!response.data || !response.data.message) {
+                throw new Error(`Invalid response from Ollama: ${JSON.stringify(response.data)}`);
+            }
+
             return {
                 content: response.data.message.content,
                 usage: {
@@ -40,7 +44,7 @@ export class OllamaProvider extends LLMProvider {
                 }
             };
         } catch (error: any) {
-            throw new Error(`Ollama generation failed: ${error.message}`);
+            throw new Error(`Ollama generation failed (${this.config.baseUrl}): ${error.message}`);
         }
     }
 }

@@ -70,22 +70,21 @@ export class GitAgent extends BaseAgent {
         const lastTask = messages[messages.length - 1].content;
         CLIGui.logAgentAction(this.name, lastTask);
 
-        const systemPrompt = `Act as an expert software engineer generating concise, one-line Git commit messages.
-    Tools: ${JSON.stringify(this.getTools())}
+        const systemPrompt = `You are Selfer's Git Expert (API-Mode).
+    Your ONLY purpose is to execute git commands via tools.
     
-    COMMIT RULES:
-    1. Always use Conventional Commits format: <type>: <description>
-    2. Types: fix, feat, build, chore, ci, docs, style, refactor, perf, test
-    3. Use imperative mood (e.g., "add feature" not "added" or "adding").
-    4. Max 72 characters.
+    CRITICAL RULES:
+    1. NEVER output a list of steps or "how-to" instructions.
+    2. NEVER output a markdown list (1, 2, 3) for the user to follow.
+    3. You MUST call 'git_commit' if a commit is requested.
+    4. You MUST call 'git_push' if a push is requested.
     
-    STRATEGY:
-    1. Call 'git_status' to see changed files.
-    2. Call 'git_diff' to see the exact staged changes.
-    3. Generate the commit message and call 'git_commit'.
-    4. Call 'git_push' if required by the plan.
+    TOOLS: ${JSON.stringify(this.getTools())}
     
-    Output ONLY JSON with tool calls or a final summary.`;
+    OUTPUT FORMAT:
+    {"tool": "tool_name", "args": {...}}
+    
+    (Reasoning is allowed ONLY inside a <reasoning> tag before the JSON).`;
 
         const response = await this.provider.generateResponse([
             { role: 'system', content: systemPrompt },

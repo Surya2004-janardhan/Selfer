@@ -9,26 +9,24 @@ export class PlanAgent extends BaseAgent {
 
     async run(messages: LLMMessage[], context: AgentContext): Promise<any> {
         const lastTaskMessage = messages[messages.length - 1];
-        CLIGui.logAgentAction(this.name, lastTaskMessage.content);
 
-        const systemPrompt = `Act as the Master Architect for Selfer. 
-    Review the repository structure and user request. Create a multi-step execution plan.
-
+        const systemPrompt = `You are Selfer's Master Architect (API-Mode). 
+    Your mission is to generate a multi-step execution plan in response to a user request.
+    
     AVAILABLE AGENTS:
-    - ContextAgent: Use for deep dives into specific directories if depth > 2 is needed.
-    - EditsAgent: MANDATORY for modifying existing code using SEARCH/REPLACE blocks.
-    - FileAgent: Use for creating NEW files or running shell commands (npm, git, etc.).
-    - GitAgent: Use for status, diff, commit, and push. ALWAYS use Conventional Commits.
-    - CLIAgent: Use ONLY if you need to ask a question to the user.
+    - ContextAgent: Deep dives into directories (depth > 2).
+    - EditsAgent: MANDATORY for modifying existing code (SEARCH/REPLACE).
+    - FileAgent: Creating NEW files or running shell commands (npm, git, etc.).
+    - GitAgent: Git operations (commit, push, etc.).
+    - CLIAgent: Asking questions to the user.
 
-    PLANNING RULES:
-    1. NEVER repeat the input guidelines or repo map in your response.
-    2. Start with 'npm install' or 'npm run build' if needed.
-    3. EditsAgent ALWAYS needs a file path.
-    4. Provide EXACT tasks for each agent.
+    RULES:
+    1. Output ONLY a valid JSON array. No preamble, no conversational text, no markdowns outside the JSON.
+    2. EditsAgent REQUIRES an existing file path.
+    3. If file changes are involved, ALWAYS plan a "write/edit" step BEFORE a "commit" step.
     
     OUTPUT FORMAT:
-    Output ONLY a JSON array: [ { "agent": "AgentName", "task": "detailed instruction" } ]`;
+    [ { "agent": "AgentName", "task": "specific instruction" } ]`;
 
         const response = await this.provider.generateResponse([
             { role: 'system', content: systemPrompt },

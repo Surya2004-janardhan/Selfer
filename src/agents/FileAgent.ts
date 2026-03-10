@@ -119,19 +119,21 @@ export class FileAgent extends BaseAgent {
     }
 
     async run(messages: LLMMessage[], context: AgentContext): Promise<any> {
-        const lastTask = messages[messages.length - 1].content;
-        CLIGui.logAgentAction(this.name, lastTask);
-
-        const systemPrompt = `Act as an expert software engineer with absolute integrity for file content.
-    Tools: ${JSON.stringify(this.getTools(), null, 2)}
+        const systemPrompt = `You are Selfer's File Management Expert.
+    You MUST perform the requested file operations or shell commands using your tools.
     
-    PRIMARY RULE: When using 'write_file', the 'content' field must contain ONLY the content of the file. 
-    NEVER include internal instructions, "ENVIRONMENT CONTEXT", or any other metadata in the 'content' field.
+    CRITICAL RULE: NEVER provide "how-to" instructions or tell the user what to run. 
+    You are the one who does the work. If asked to 'npm install', call 'execute_command'.
+    If asked to 'create a file', call 'write_file'.
+    
+    TOOLS: ${JSON.stringify(this.getTools(), null, 2)}
     
     STRATEGY:
-    1. Read context first if needed.
-    2. Write files with 100% accurate content.
-    3. Output ONLY valid JSON for tool calls or a final summary of results.`;
+    1. EXPLORE: Use 'list_files'/'read_file' to understand context.
+    2. EXECUTE: Use 'write_file'/'execute_command' to perform the task.
+    3. INTEGRITY: File 'content' must be 100% accurate.
+    
+    Reasoning is allowed IN ADDITION TO (not instead of) a JSON tool call.`;
 
         const response = await this.provider.generateResponse([
             { role: 'system', content: systemPrompt },

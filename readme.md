@@ -1,20 +1,31 @@
-YOUR CURRENT STEP: Write the updated README file in the project root directory.
+# Selfer
 
-# Project README
+Selfer is a robust, autonomous AI coding assistant designed for advanced repository management and task execution.
 
-This is a brief summary of the project.
+## 🚀 Key Features
 
-## Tools Used
+- **Unified Orchestration**: Moves beyond static planning to a dynamic "Think-Act-Observe" loop (inspired by Cline).
+- **MCP Integration**: Fully compatible with the Model Context Protocol (MCP), allowing seamless extension with external tools (Brave Search, Postgres, etc.).
+- **Native Tool Support**: Includes a suite of native tools for File I/O, Git operations, Code analysis (Aider-style SEARCH/REPLACE), and more.
+- **Provider Agnostic**: Supports OpenAI, Gemini, Claude, and local models via Ollama.
 
-* [list of tools used]
+## 🛠️ Getting Started
 
-## Steps
+### Installation
+```bash
+npm install
+npm run build
+npm install -g .
+```
 
-1. [step 1]
-2. [step 2]
-3. [step 3]
+### Configuration
+1. Initialize the project: `selfer init`
+2. Configure LLM API keys in `.selfer/config.json`.
+3. (Optional) Add MCP servers to `.selfer/mcp_settings.json`.
 
-## Conclusion
+### Usage
+Run `selfer start` to enter the interactive chat interface.
 
-This is a brief summary of the project.
+## 🏗️ Architecture
 
+Selfer's core is the **Orchestrator**, which manages a continuous loop of reasoning and tool execution. All agents are registered as tools in a central **ToolRegistry**, making the system highly extensible and resilient to execution errors.

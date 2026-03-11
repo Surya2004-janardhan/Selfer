@@ -17,9 +17,9 @@ export class FileAgent extends BaseAgent {
     /** Absolute path of the project root. All file ops are restricted to this. */
     private readonly projectRoot: string;
 
-    constructor(provider: any) {
+    constructor(provider: any, projectRoot?: string) {
         super('FileAgent', provider);
-        this.projectRoot = process.cwd();
+        this.projectRoot = projectRoot || process.cwd();
     }
 
     getTools(): Tool[] {

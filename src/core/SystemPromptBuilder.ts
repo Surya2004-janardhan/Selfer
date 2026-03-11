@@ -32,11 +32,20 @@ You are direct, technical, and to the point. You avoid conversational fillers an
     private static getToolSection(tools: Tool[]): string {
         return `TOOL USE
 
-You have access to the following tools. To use a tool, you must wrap the tool call in custom XML tags.
-Every tool call MUST be formatted exactly like this:
-<tool_name>
-<param_name>value</param_name>
-</tool_name>
+You have access to the following tools. To use a tool, you MUST wrap the tool call in XML tags exactly like this:
+
+EXAMPLE (reading a file):
+<read_file>
+<path>src/main.ts</path>
+</read_file>
+
+EXAMPLE (writing a file):
+<write_file>
+<path>src/new_file.ts</path>
+<content>export function hello() { return "world"; }</content>
+</write_file>
+
+CRITICAL: Each parameter MUST be wrapped in its own XML tags. Do NOT use "param: value" format.
 
 AVAILABLE TOOLS:
 ${tools.map(t => this.formatTool(t)).join('\n\n')}`;
@@ -55,9 +64,31 @@ ${Object.entries(tool.parameters.properties || {}).map(([name, schema]) => `- ${
 - Default to 'apply_search_replace' for most changes. It's safer and minimises issues.
 - Use 'write_file' only for new files or complete overhauls.
 - When using 'apply_search_replace', you MUST provide exact SEARCH/REPLACE blocks.
-- Every SEARCH section must EXACTLY MATCH the existing file content, character for character, including all whitespace and indentation.
-- Include enough lines in SEARCH to uniquely match the target block (at least 3–5 lines of context).
-- To read a file before editing use 'read_file' (FileAgent) or 'read_file_for_edit' (EditsAgent).`;
+
+SEARCH/REPLACE BLOCK FORMAT (must be EXACTLY like this):
+<apply_search_replace>
+<edits>
+path/to/file.ts
+<<<<<<< SEARCH
+// Exact lines from the file
+// Including all whitespace
+function oldCode() {
+    return false;
+}
+=======
+// New replacement lines
+function oldCode() {
+    return true;
+}
+>>>>>>> REPLACE
+</edits>
+</apply_search_replace>
+
+CRITICAL RULES FOR SEARCH/REPLACE:
+- The SEARCH section must EXACTLY MATCH the existing file content, character for character.
+- Include 3-5 lines of context to uniquely identify the target block.
+- Use 'read_file' first to get the exact current content before editing.
+- The file path goes on a line by itself BEFORE the <<<<<<< SEARCH marker.`;
     }
 
     private static getEnvironmentSection(context: PromptContext): string {

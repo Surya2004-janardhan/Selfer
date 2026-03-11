@@ -1,4 +1,5 @@
 import { McpManager } from './McpManager';
+import { Logger } from '../utils/Logger';
 
 export interface Tool {
     name: string;
@@ -30,6 +31,12 @@ export class ToolRegistry {
     constructor(private mcpManager: McpManager) { }
 
     registerNativeTool(tool: ToolDefinition) {
+        if (this.tools.has(tool.name)) {
+            // Warn on duplicate – do NOT silently overwrite
+            Logger.warn(`Duplicate tool registration ignored: '${tool.name}'. ` +
+                `The first registration is kept. Rename one tool to avoid this conflict.`);
+            return;
+        }
         this.tools.set(tool.name, tool);
     }
 
@@ -38,7 +45,7 @@ export class ToolRegistry {
         for (const tool of mcpTools) {
             this.tools.set(tool.name, {
                 name: tool.name,
-                description: tool.description || "No description provided",
+                description: tool.description || 'No description provided',
                 parameters: tool.inputSchema,
                 execute: async (args) => {
                     const res = await this.mcpManager.callTool(tool.serverName, tool.name, args);
@@ -65,7 +72,7 @@ export class ToolRegistry {
     async executeTool(name: string, args: any): Promise<ToolResult> {
         const tool = this.tools.get(name);
         if (!tool) {
-            throw new Error(`Tool ${name} not found`);
+            throw new Error(`Tool '${name}' not found. Available tools: ${Array.from(this.tools.keys()).join(', ')}`);
         }
         return await tool.execute(args);
     }

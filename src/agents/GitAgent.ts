@@ -25,7 +25,7 @@ export class GitAgent extends BaseAgent {
             },
             {
                 name: 'git_commit',
-                description: 'Commits staged changes with a message.',
+                description: 'Stages all tracked (non-.gitignored) changes and commits with a message.',
                 parameters: {
                     type: 'object',
                     properties: {
@@ -36,7 +36,7 @@ export class GitAgent extends BaseAgent {
             },
             {
                 name: 'git_push',
-                description: 'Pushes changes to origin.',
+                description: 'Pushes committed changes to the remote origin.',
                 parameters: { type: 'object', properties: {}, required: [] }
             }
         ];
@@ -45,19 +45,25 @@ export class GitAgent extends BaseAgent {
     async executeTool(name: string, args: any): Promise<ToolResult> {
         try {
             switch (name) {
-                case 'git_status':
+                case 'git_status': {
                     const status = await this.git.status();
                     return { success: true, output: JSON.stringify(status, null, 2) };
-                case 'git_diff':
+                }
+                case 'git_diff': {
                     const diff = await this.git.diff(['--cached']);
-                    return { success: true, output: diff || "No staged changes to diff." };
-                case 'git_commit':
-                    await this.git.add('.');
+                    return { success: true, output: diff || 'No staged changes to diff.' };
+                }
+                case 'git_commit': {
+                    // Use '--all' to stage modifications and deletions of TRACKED files only.
+                    // This respects .gitignore and does NOT blindly add untracked files.
+                    await this.git.add('--all');
                     await this.git.commit(args.message);
-                    return { success: true, output: `Committed with message: ${args.message}` };
-                case 'git_push':
+                    return { success: true, output: `Committed with message: "${args.message}"` };
+                }
+                case 'git_push': {
                     await this.git.push();
-                    return { success: true, output: "Successfully pushed to origin." };
+                    return { success: true, output: 'Successfully pushed to origin.' };
+                }
                 default:
                     return { success: false, output: '', error: `Unknown tool: ${name}` };
             }

@@ -52,11 +52,12 @@ ${Object.entries(tool.parameters.properties || {}).map(([name, schema]) => `- ${
     private static getEditingRulesSection(): string {
         return `EDITING FILES
 
-- Default to 'replace_in_file' for most changes. It's safer and minimizes issues.
-- Use 'write_to_file' only for new files or complete overhauls.
-- When using 'replace_in_file', you MUST provide exact SEARCH/REPLACE blocks.
-- Every SEARCH section must EXACTLY MATCH the existing file content, character for character.
-- Include enough lines in SEARCH to uniquely match the target block.`;
+- Default to 'apply_search_replace' for most changes. It's safer and minimises issues.
+- Use 'write_file' only for new files or complete overhauls.
+- When using 'apply_search_replace', you MUST provide exact SEARCH/REPLACE blocks.
+- Every SEARCH section must EXACTLY MATCH the existing file content, character for character, including all whitespace and indentation.
+- Include enough lines in SEARCH to uniquely match the target block (at least 3–5 lines of context).
+- To read a file before editing use 'read_file' (FileAgent) or 'read_file_for_edit' (EditsAgent).`;
     }
 
     private static getEnvironmentSection(context: PromptContext): string {

@@ -14,8 +14,8 @@ export class EditsAgent extends BaseAgent {
     getTools(): Tool[] {
         return [
             {
-                name: 'read_file',
-                description: 'Reads a file to understand its context before editing.',
+                name: 'read_file_for_edit',
+                description: 'Reads a file to understand its exact content before applying SEARCH/REPLACE edits.',
                 parameters: {
                     type: 'object',
                     properties: {
@@ -39,8 +39,8 @@ export class EditsAgent extends BaseAgent {
                 }
             },
             {
-                name: 'write_file',
-                description: 'Writes the full content to a file. Use this for complete rewrites or new files.',
+                name: 'write_file_full',
+                description: 'Writes the complete content to a file. Use this for new files or complete rewrites only.',
                 parameters: {
                     type: 'object',
                     properties: {
@@ -56,12 +56,13 @@ export class EditsAgent extends BaseAgent {
     async executeTool(name: string, args: any): Promise<ToolResult> {
         try {
             switch (name) {
-                case 'read_file':
-                    const readPath = path.join(process.cwd(), args.path);
+                case 'read_file_for_edit': {
+                    const readPath = path.resolve(process.cwd(), args.path);
                     if (!fs.existsSync(readPath)) return { success: false, output: '', error: `File not found: ${args.path}` };
                     return { success: true, output: fs.readFileSync(readPath, 'utf-8') };
+                }
 
-                case 'apply_search_replace':
+                case 'apply_search_replace': {
                     const blocks = EditParser.parseBlocks(args.edits);
                     if (blocks.length === 0) return { success: false, output: '', error: 'No valid SEARCH/REPLACE blocks found in input.' };
 
@@ -71,18 +72,24 @@ export class EditsAgent extends BaseAgent {
                     if (failed.length > 0) {
                         return {
                             success: false,
-                            output: JSON.stringify(results),
-                            error: `Failed to apply some edits: ${failed.map(f => `${f.filePath}: ${f.error}`).join(', ')}`
+                            output: JSON.stringify(results, null, 2),
+                            error: `Failed to apply ${failed.length} edit(s): ${failed.map(f => `${f.filePath}: ${f.error}`).join('; ')}`
                         };
                     }
-                    return { success: true, output: `Successfully applied ${blocks.length} edit blocks.` };
+                    return { success: true, output: `Successfully applied ${blocks.length} edit block(s).` };
+                }
 
-                case 'write_file':
-                    const writePath = path.join(process.cwd(), args.path);
+                case 'write_file_full': {
+                    const writePath = path.resolve(process.cwd(), args.path);
                     const dir = path.dirname(writePath);
                     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+                    // Back up the original file if it exists
+                    if (fs.existsSync(writePath)) {
+                        fs.copyFileSync(writePath, `${writePath}.bak`);
+                    }
                     fs.writeFileSync(writePath, args.content);
                     return { success: true, output: `Successfully wrote ${args.path}` };
+                }
 
                 default:
                     return { success: false, output: '', error: `Unknown tool: ${name}` };

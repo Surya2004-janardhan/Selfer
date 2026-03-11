@@ -265,6 +265,105 @@ export class ClaudeProvider extends LLMProvider {
     }
 }
 
+export class GroqProvider extends LLMProvider {
+    constructor(private config: { apiKey: string; model: string; timeoutMs?: number }) {
+        super();
+    }
+
+    supportsStreaming(): boolean {
+        return true;
+    }
+
+    async generateResponse(messages: LLMMessage[]): Promise<LLMResponse> {
+        return withRetry(async () => {
+            const response = await axios.post(
+                'https://api.groq.com/openai/v1/chat/completions',
+                { model: this.config.model, messages, stream: false },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${this.config.apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: this.config.timeoutMs ?? DEFAULT_TIMEOUT_MS
+                }
+            );
+
+            return {
+                content: response.data.choices[0].message.content,
+                usage: {
+                    promptTokens: response.data.usage?.prompt_tokens || 0,
+                    completionTokens: response.data.usage?.completion_tokens || 0,
+                    totalTokens: response.data.usage?.total_tokens || 0
+                }
+            };
+        }, {
+            onRetry: (err, attempt) =>
+                Logger.warn(`Groq retry ${attempt}: ${err.message}`, { provider: 'groq', model: this.config.model })
+        });
+    }
+
+    async generateResponseStream(
+        messages: LLMMessage[],
+        onChunk: StreamCallback
+    ): Promise<LLMResponse> {
+        let fullContent = '';
+        let promptTokens = 0;
+        let completionTokens = 0;
+
+        const response = await axios.post(
+            'https://api.groq.com/openai/v1/chat/completions',
+            { model: this.config.model, messages, stream: true },
+            {
+                headers: {
+                    'Authorization': `Bearer ${this.config.apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                timeout: this.config.timeoutMs ?? STREAMING_TIMEOUT_MS,
+                responseType: 'stream'
+            }
+        );
+
+        return new Promise((resolve, reject) => {
+            response.data.on('data', (chunk: Buffer) => {
+                try {
+                    const lines = chunk.toString().split('\n').filter(line => line.trim() && line.startsWith('data: '));
+                    for (const line of lines) {
+                        const jsonStr = line.replace('data: ', '');
+                        if (jsonStr === '[DONE]') continue;
+                        const data = JSON.parse(jsonStr);
+                        const delta = data.choices?.[0]?.delta?.content;
+                        if (delta) {
+                            fullContent += delta;
+                            onChunk(delta);
+                        }
+                        if (data.usage) {
+                            promptTokens = data.usage.prompt_tokens || 0;
+                            completionTokens = data.usage.completion_tokens || 0;
+                        }
+                    }
+                } catch (e) {
+                    // Ignore parse errors for partial chunks
+                }
+            });
+
+            response.data.on('end', () => {
+                resolve({
+                    content: fullContent,
+                    usage: {
+                        promptTokens,
+                        completionTokens,
+                        totalTokens: promptTokens + completionTokens
+                    }
+                });
+            });
+
+            response.data.on('error', (err: Error) => {
+                reject(err);
+            });
+        });
+    }
+}
+
 export class FallbackLLMProvider extends LLMProvider {
     private activeProvider: { name: string; provider: LLMProvider } | null = null;
 

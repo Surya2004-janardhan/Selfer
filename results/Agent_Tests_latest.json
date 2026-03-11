@@ -1,0 +1,118 @@
+{
+  "suiteName": "Agent_Tests",
+  "totalTests": 12,
+  "passed": 12,
+  "failed": 0,
+  "duration": 280,
+  "results": [
+    {
+      "testName": "list_files - root directory",
+      "category": "FileAgent",
+      "passed": true,
+      "duration": 8,
+      "actualOutput": "hello.txt\nsample.ts\nsubdir\\nested.txt",
+      "expectedOutput": "Should list hello.txt and sample.ts",
+      "timestamp": "2026-03-11T08:09:34.534Z"
+    },
+    {
+      "testName": "list_files - subdirectory",
+      "category": "FileAgent",
+      "passed": true,
+      "duration": 6,
+      "actualOutput": "subdir\\nested.txt",
+      "expectedOutput": "Should list nested.txt",
+      "timestamp": "2026-03-11T08:09:34.553Z"
+    },
+    {
+      "testName": "read_file - existing file",
+      "category": "FileAgent",
+      "passed": true,
+      "duration": 1,
+      "actualOutput": "Hello World!\nThis is a test file.\n",
+      "expectedOutput": "Should contain \"Hello World!\"",
+      "timestamp": "2026-03-11T08:09:34.556Z"
+    },
+    {
+      "testName": "read_file - non-existent file",
+      "category": "FileAgent",
+      "passed": true,
+      "duration": 1,
+      "actualOutput": "File not found: nonexistent.txt",
+      "expectedOutput": "Should fail with \"not found\" error",
+      "timestamp": "2026-03-11T08:09:34.558Z"
+    },
+    {
+      "testName": "write_file - create new file",
+      "category": "FileAgent",
+      "passed": true,
+      "duration": 18,
+      "actualOutput": "New file content!",
+      "expectedOutput": "New file content!",
+      "timestamp": "2026-03-11T08:09:34.577Z"
+    },
+    {
+      "testName": "write_file - overwrite existing file",
+      "category": "FileAgent",
+      "passed": true,
+      "duration": 19,
+      "actualOutput": "Updated content!",
+      "expectedOutput": "Updated content!",
+      "timestamp": "2026-03-11T08:09:34.597Z"
+    },
+    {
+      "testName": "write_file - path traversal blocked",
+      "category": "FileAgent",
+      "passed": true,
+      "duration": 1,
+      "actualOutput": "Path is outside the project root.",
+      "expectedOutput": "Should be blocked with \"outside\" error",
+      "timestamp": "2026-03-11T08:09:34.598Z"
+    },
+    {
+      "testName": "EditParser - parse single block",
+      "category": "EditsAgent",
+      "passed": true,
+      "duration": 3,
+      "actualOutput": "[\n  {\n    \"filePath\": \"sample.ts\",\n    \"search\": \"function greet(name: string) {\\n    console.log(\\\"Hello, \\\" + name);\\n}\",\n    \"replace\": \"function greet(name: string) {\\n    console.log(`Hello, ${name}!`);\\n}\"\n  }\n]",
+      "expectedOutput": "1 block for sample.ts",
+      "timestamp": "2026-03-11T08:09:34.602Z"
+    },
+    {
+      "testName": "EditParser - apply exact match",
+      "category": "EditsAgent",
+      "passed": true,
+      "duration": 52,
+      "actualOutput": "function greet(name: string) {\n    console.log(`Hello, ${name}!`);\n}\n\ngreet(\"World\");\n",
+      "expectedOutput": "Should contain template literal syntax",
+      "timestamp": "2026-03-11T08:09:34.656Z"
+    },
+    {
+      "testName": "EditParser - apply fuzzy match with whitespace differences",
+      "category": "EditsAgent",
+      "passed": true,
+      "duration": 66,
+      "actualOutput": "Fuzzy match succeeded",
+      "expectedOutput": "Should succeed with fuzzy matching",
+      "timestamp": "2026-03-11T08:09:34.722Z"
+    },
+    {
+      "testName": "EditParser - backup and validation",
+      "category": "EditsAgent",
+      "passed": true,
+      "duration": 38,
+      "actualOutput": "Success: true, Backup: true",
+      "expectedOutput": "Success with backup created",
+      "timestamp": "2026-03-11T08:09:34.761Z"
+    },
+    {
+      "testName": "GitAgent - tools registered",
+      "category": "GitAgent",
+      "passed": true,
+      "duration": 3,
+      "actualOutput": "git_status, git_diff, git_commit, git_push",
+      "expectedOutput": "git_status, git_diff, git_commit, git_push",
+      "timestamp": "2026-03-11T08:09:34.767Z"
+    }
+  ],
+  "timestamp": "2026-03-11T08:09:34.792Z"
+}

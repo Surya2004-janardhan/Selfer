@@ -66,14 +66,34 @@ export class Orchestrator {
 
             let response;
             try {
-                response = await this.provider.generateResponse(messages);
+                // Use streaming if the provider supports it for better UX
+                if (this.provider.supportsStreaming()) {
+                    CLIGui.startStream();
+                    response = await this.provider.generateResponseStream(messages, (chunk) => {
+                        CLIGui.writeStreamChunk(chunk);
+                    });
+                    CLIGui.endStream();
+                } else {
+                    CLIGui.startLoader('Thinking...');
+                    response = await this.provider.generateResponse(messages);
+                    CLIGui.stopLoader();
+                }
             } catch (err: any) {
+                CLIGui.stopLoader();
                 // Context overflow from provider — trim and retry once
                 if (this.isContextOverflow(err)) {
                     CLIGui.warning('Context window exceeded. Trimming messages and retrying...');
                     messages = this.trimMessages(messages, Math.floor(safeBudget * 0.6));
                     try {
-                        response = await this.provider.generateResponse(messages);
+                        if (this.provider.supportsStreaming()) {
+                            CLIGui.startStream();
+                            response = await this.provider.generateResponseStream(messages, (chunk) => {
+                                CLIGui.writeStreamChunk(chunk);
+                            });
+                            CLIGui.endStream();
+                        } else {
+                            response = await this.provider.generateResponse(messages);
+                        }
                     } catch (retryErr: any) {
                         CLIGui.error(`LLM call failed after trim: ${retryErr.message}`);
                         return `Task failed: LLM error — ${retryErr.message}`;
@@ -89,6 +109,7 @@ export class Orchestrator {
 
             if (response.usage) {
                 Logger.info(`LLM usage: ${response.usage.promptTokens} in / ${response.usage.completionTokens} out / ${response.usage.totalTokens} total`);
+                CLIGui.showTokenUsage(response.usage.promptTokens, response.usage.completionTokens, response.usage.totalTokens);
             }
 
             // ── Parse tool calls ──────────────────────────────────────────────

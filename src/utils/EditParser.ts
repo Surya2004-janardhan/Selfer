@@ -82,11 +82,24 @@ export class EditParser {
                 const searchLines = block.search.split(/\r?\n/);
                 const replaceLines = block.replace.split(/\r?\n/);
 
+                // Create backup before modifying
+                const backupPath = `${fullPath}.bak`;
+                fs.copyFileSync(fullPath, backupPath);
+
                 if (block.search.trim() === "") {
                     // Prepend if search block is essentially empty (creation/append)
                     const newContent = replaceLines.join('\n') + (content ? '\n' + content : '');
                     fs.writeFileSync(fullPath, newContent);
-                    results.push({ filePath: block.filePath, success: true });
+                    
+                    // Validate the edit
+                    const validationResult = EditParser.validateEdit(fullPath);
+                    if (!validationResult.valid) {
+                        // Restore from backup
+                        fs.copyFileSync(backupPath, fullPath);
+                        results.push({ filePath: block.filePath, success: false, error: `Edit validation failed: ${validationResult.error}. Restored from backup.` });
+                    } else {
+                        results.push({ filePath: block.filePath, success: true });
+                    }
                     continue;
                 }
 
@@ -98,7 +111,15 @@ export class EditParser {
                 if (exactContentStr.includes(exactSearchStr)) {
                     const newContent = exactContentStr.replace(exactSearchStr, exactReplaceStr);
                     fs.writeFileSync(fullPath, newContent);
-                    results.push({ filePath: block.filePath, success: true });
+                    
+                    // Validate the edit
+                    const validationResult = EditParser.validateEdit(fullPath);
+                    if (!validationResult.valid) {
+                        fs.copyFileSync(backupPath, fullPath);
+                        results.push({ filePath: block.filePath, success: false, error: `Edit validation failed: ${validationResult.error}. Restored from backup.` });
+                    } else {
+                        results.push({ filePath: block.filePath, success: true });
+                    }
                     continue;
                 }
 
@@ -164,7 +185,15 @@ export class EditParser {
 
                     contentLines.splice(matchStartIndex, (matchEndIndex - matchStartIndex) + 1, ...adjustedReplaceLines);
                     fs.writeFileSync(fullPath, contentLines.join('\n'));
-                    results.push({ filePath: block.filePath, success: true });
+                    
+                    // Validate the edit
+                    const validationResult = EditParser.validateEdit(fullPath);
+                    if (!validationResult.valid) {
+                        fs.copyFileSync(backupPath, fullPath);
+                        results.push({ filePath: block.filePath, success: false, error: `Edit validation failed: ${validationResult.error}. Restored from backup.` });
+                    } else {
+                        results.push({ filePath: block.filePath, success: true });
+                    }
                 } else {
                     results.push({
                         filePath: block.filePath,
@@ -179,5 +208,53 @@ export class EditParser {
         }
 
         return results;
+    }
+
+    /**
+     * Validates that an edited file is not empty/corrupt.
+     * Returns { valid: true } if OK, or { valid: false, error: string } if not.
+     */
+    static validateEdit(filePath: string): { valid: boolean; error?: string } {
+        try {
+            const content = fs.readFileSync(filePath, 'utf-8');
+            
+            // Check if file is empty
+            if (content.trim() === '') {
+                return { valid: false, error: 'File became empty after edit' };
+            }
+
+            // Check for obvious corruption patterns
+            const ext = path.extname(filePath).toLowerCase();
+            
+            // For TypeScript/JavaScript: check for basic syntax sanity
+            if (['.ts', '.tsx', '.js', '.jsx'].includes(ext)) {
+                // Check for unmatched braces (simple heuristic)
+                const openBraces = (content.match(/{/g) || []).length;
+                const closeBraces = (content.match(/}/g) || []).length;
+                if (Math.abs(openBraces - closeBraces) > 3) {
+                    return { valid: false, error: `Unbalanced braces detected (${openBraces} open, ${closeBraces} close)` };
+                }
+                
+                // Check for unmatched parentheses
+                const openParens = (content.match(/\(/g) || []).length;
+                const closeParens = (content.match(/\)/g) || []).length;
+                if (Math.abs(openParens - closeParens) > 3) {
+                    return { valid: false, error: `Unbalanced parentheses detected (${openParens} open, ${closeParens} close)` };
+                }
+            }
+            
+            // For JSON files: try to parse
+            if (ext === '.json') {
+                try {
+                    JSON.parse(content);
+                } catch (e) {
+                    return { valid: false, error: 'Invalid JSON after edit' };
+                }
+            }
+
+            return { valid: true };
+        } catch (err: any) {
+            return { valid: false, error: `Validation error: ${err.message}` };
+        }
     }
 }

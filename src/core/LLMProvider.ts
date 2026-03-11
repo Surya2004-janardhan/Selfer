@@ -16,16 +16,42 @@ export interface LLMResponse {
     };
 }
 
+/** Callback for streaming chunks */
+export type StreamCallback = (chunk: string) => void;
+
 /** Default request timeout in milliseconds (30 seconds). */
 const DEFAULT_TIMEOUT_MS = 30_000;
 
+/** Long timeout for streaming (3 minutes) */
+const STREAMING_TIMEOUT_MS = 180_000;
+
 export abstract class LLMProvider {
     abstract generateResponse(messages: LLMMessage[]): Promise<LLMResponse>;
+    
+    /** Whether this provider supports streaming */
+    supportsStreaming(): boolean {
+        return false;
+    }
+    
+    /** Generate a streaming response (override in subclasses that support it) */
+    async generateResponseStream(
+        messages: LLMMessage[],
+        onChunk: StreamCallback
+    ): Promise<LLMResponse> {
+        // Default: fall back to non-streaming
+        const response = await this.generateResponse(messages);
+        onChunk(response.content);
+        return response;
+    }
 }
 
 export class OllamaProvider extends LLMProvider {
     constructor(private config: { model: string; baseUrl: string; timeoutMs?: number }) {
         super();
+    }
+
+    supportsStreaming(): boolean {
+        return true;
     }
 
     async generateResponse(messages: LLMMessage[]): Promise<LLMResponse> {
@@ -51,6 +77,60 @@ export class OllamaProvider extends LLMProvider {
         }, {
             onRetry: (err, attempt) =>
                 Logger.warn(`Ollama retry ${attempt}: ${err.message}`, { provider: 'ollama', model: this.config.model })
+        });
+    }
+
+    async generateResponseStream(
+        messages: LLMMessage[],
+        onChunk: StreamCallback
+    ): Promise<LLMResponse> {
+        let fullContent = '';
+        let promptTokens = 0;
+        let completionTokens = 0;
+
+        const response = await axios.post(
+            `${this.config.baseUrl}/api/chat`,
+            { model: this.config.model, messages, stream: true },
+            {
+                timeout: this.config.timeoutMs ?? STREAMING_TIMEOUT_MS,
+                responseType: 'stream'
+            }
+        );
+
+        return new Promise((resolve, reject) => {
+            response.data.on('data', (chunk: Buffer) => {
+                try {
+                    const lines = chunk.toString().split('\n').filter(line => line.trim());
+                    for (const line of lines) {
+                        const data = JSON.parse(line);
+                        if (data.message?.content) {
+                            fullContent += data.message.content;
+                            onChunk(data.message.content);
+                        }
+                        if (data.done) {
+                            promptTokens = data.prompt_eval_count || 0;
+                            completionTokens = data.eval_count || 0;
+                        }
+                    }
+                } catch (e) {
+                    // Ignore parse errors for partial chunks
+                }
+            });
+
+            response.data.on('end', () => {
+                resolve({
+                    content: fullContent,
+                    usage: {
+                        promptTokens,
+                        completionTokens,
+                        totalTokens: promptTokens + completionTokens
+                    }
+                });
+            });
+
+            response.data.on('error', (err: Error) => {
+                reject(err);
+            });
         });
     }
 }
@@ -186,8 +266,19 @@ export class ClaudeProvider extends LLMProvider {
 }
 
 export class FallbackLLMProvider extends LLMProvider {
+    private activeProvider: { name: string; provider: LLMProvider } | null = null;
+
     constructor(private providers: { name: string; provider: LLMProvider }[]) {
         super();
+    }
+
+    supportsStreaming(): boolean {
+        // If we have an active provider that succeeded before, check if it supports streaming
+        if (this.activeProvider) {
+            return this.activeProvider.provider.supportsStreaming();
+        }
+        // Otherwise, check if any provider supports streaming
+        return this.providers.some(p => p.provider.supportsStreaming());
     }
 
     async generateResponse(messages: LLMMessage[]): Promise<LLMResponse> {
@@ -198,6 +289,7 @@ export class FallbackLLMProvider extends LLMProvider {
                 Logger.debug(`Trying provider: ${name}`);
                 const response = await provider.generateResponse(messages);
                 Logger.debug(`Provider succeeded: ${name}`);
+                this.activeProvider = { name, provider };
                 return response;
             } catch (error: any) {
                 lastError = error instanceof Error ? error : new Error(String(error));
@@ -206,5 +298,40 @@ export class FallbackLLMProvider extends LLMProvider {
         }
 
         throw new Error(`All LLM providers failed. Last error: ${lastError?.message}`);
+    }
+
+    async generateResponseStream(
+        messages: LLMMessage[],
+        onChunk: StreamCallback
+    ): Promise<LLMResponse> {
+        let lastError: Error | null = null;
+
+        for (const { name, provider } of this.providers) {
+            try {
+                Logger.debug(`Trying provider (stream): ${name}`);
+                if (provider.supportsStreaming()) {
+                    const response = await provider.generateResponseStream(messages, onChunk);
+                    Logger.debug(`Provider succeeded (stream): ${name}`);
+                    this.activeProvider = { name, provider };
+                    return response;
+                } else {
+                    const response = await provider.generateResponse(messages);
+                    onChunk(response.content);
+                    Logger.debug(`Provider succeeded (non-stream fallback): ${name}`);
+                    this.activeProvider = { name, provider };
+                    return response;
+                }
+            } catch (error: any) {
+                lastError = error instanceof Error ? error : new Error(String(error));
+                Logger.warn(`Provider ${name} failed: ${lastError.message}`);
+            }
+        }
+
+        throw new Error(`All LLM providers failed. Last error: ${lastError?.message}`);
+    }
+
+    /** Get the name of the currently active provider */
+    getActiveProviderName(): string | null {
+        return this.activeProvider?.name || null;
     }
 }

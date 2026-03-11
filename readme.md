@@ -153,3 +153,6 @@ skills/         Markdown skill files
 ## Licence
 
 ISC
+
+
+<!-- ollama pull qwen2.5:14b-instruct-q4_K_M -->

@@ -12,7 +12,11 @@
     "dev": "tsc && node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:integration": "npx tsx tests/integration/run_all.ts",
+    "test:agents": "npx tsx tests/integration/agent.test.ts",
+    "test:orchestrator": "npx tsx tests/integration/orchestrator.test.ts",
+    "test:e2e": "npx tsx tests/integration/e2e.test.ts"
   },
   "keywords": [
     "ai",
@@ -57,6 +61,7 @@
     "@types/node": "^25.3.5",
     "@types/ora": "^3.1.0",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^3.1.0"
   }

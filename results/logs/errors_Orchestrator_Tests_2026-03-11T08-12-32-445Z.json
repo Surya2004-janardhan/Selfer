@@ -1,0 +1,21 @@
+{
+  "suiteName": "Orchestrator_Tests",
+  "failedCount": 2,
+  "timestamp": "2026-03-11T08:12:32.439Z",
+  "failures": [
+    {
+      "testName": "ContextGuard - truncate long content",
+      "category": "Context",
+      "error": "Not truncated",
+      "actualOutput": "Length: 10000, has indicator: false",
+      "expectedOutput": "Truncated with indicator"
+    },
+    {
+      "testName": "Orchestrator - simple file listing task",
+      "category": "Orchestrator",
+      "error": "Response does not mention expected files",
+      "actualOutput": "Now that I have the list of files in the current directory, I can proceed with the task.",
+      "expectedOutput": "Should mention test files (readme.md, main.ts, or config.json)"
+    }
+  ]
+}

@@ -1,0 +1,129 @@
+{
+  "suiteName": "Orchestrator_Tests",
+  "totalTests": 13,
+  "passed": 11,
+  "failed": 2,
+  "duration": 113241,
+  "results": [
+    {
+      "testName": "TokenCounter - estimate string",
+      "category": "Context",
+      "passed": true,
+      "duration": 2,
+      "actualOutput": "10 tokens",
+      "expectedOutput": "8-15 tokens for ~40 char string",
+      "timestamp": "2026-03-11T08:10:39.228Z"
+    },
+    {
+      "testName": "TokenCounter - estimate messages",
+      "category": "Context",
+      "passed": true,
+      "duration": 1,
+      "actualOutput": "27 tokens",
+      "expectedOutput": "More than 10 tokens with overhead",
+      "timestamp": "2026-03-11T08:10:39.231Z"
+    },
+    {
+      "testName": "ContextGuard - truncate long content",
+      "category": "Context",
+      "passed": false,
+      "duration": 0,
+      "actualOutput": "Length: 10000, has indicator: false",
+      "expectedOutput": "Truncated with indicator",
+      "error": "Not truncated",
+      "timestamp": "2026-03-11T08:10:39.232Z"
+    },
+    {
+      "testName": "ContextGuard - preserve short content",
+      "category": "Context",
+      "passed": true,
+      "duration": 0,
+      "actualOutput": "This is short content.",
+      "expectedOutput": "This is short content.",
+      "timestamp": "2026-03-11T08:10:39.233Z"
+    },
+    {
+      "testName": "ModelRegistry - known model",
+      "category": "Context",
+      "passed": true,
+      "duration": 1,
+      "actualOutput": "{\"contextWindow\":8192,\"maxOutputTokens\":4096,\"provider\":\"ollama\"}",
+      "expectedOutput": "Valid context window and ollama provider",
+      "timestamp": "2026-03-11T08:10:39.234Z"
+    },
+    {
+      "testName": "ModelRegistry - safe budget",
+      "category": "Context",
+      "passed": true,
+      "duration": 1,
+      "actualOutput": "Budget: 6553, Window: 8192",
+      "expectedOutput": "Budget should be 50-100% of context window",
+      "timestamp": "2026-03-11T08:10:39.236Z"
+    },
+    {
+      "testName": "ToolRegistry - has core tools",
+      "category": "ToolRegistry",
+      "passed": true,
+      "duration": 0,
+      "actualOutput": "list_files, read_file, write_file, execute_command, delete_path, git_status, git_diff, git_commit, git_push, read_file_for_edit...",
+      "expectedOutput": "list_files, read_file, write_file, execute_command, apply_search_replace",
+      "timestamp": "2026-03-11T08:10:39.237Z"
+    },
+    {
+      "testName": "ToolRegistry - execute list_files",
+      "category": "ToolRegistry",
+      "passed": true,
+      "duration": 2,
+      "actualOutput": "config.json\nmain.ts\nreadme.md",
+      "expectedOutput": "List of files including readme.md and main.ts",
+      "timestamp": "2026-03-11T08:10:39.239Z"
+    },
+    {
+      "testName": "ToolRegistry - execute read_file",
+      "category": "ToolRegistry",
+      "passed": true,
+      "duration": 1,
+      "actualOutput": "# Test Project\n\nThis is a test project.\n",
+      "expectedOutput": "Should contain \"Test Project\"",
+      "timestamp": "2026-03-11T08:10:39.240Z"
+    },
+    {
+      "testName": "ToolRegistry - unknown tool fails gracefully",
+      "category": "ToolRegistry",
+      "passed": true,
+      "duration": 1,
+      "actualOutput": "Tool 'nonexistent_tool' not found. Available tools: list_files, read_file, write_file, execute_command, delete_path, git_status, git_diff, git_commit, git_push, read_file_for_edit, apply_search_replace, write_file_full, get_repo_map, get_file_signatures, attempt_completion, ask_followup_question, execute",
+      "expectedOutput": "Error message should indicate tool not found",
+      "timestamp": "2026-03-11T08:10:39.241Z"
+    },
+    {
+      "testName": "Orchestrator - simple file listing task",
+      "category": "Orchestrator",
+      "passed": false,
+      "duration": 31039,
+      "actualOutput": "Now that I have the list of files in the current directory, I can proceed with the task.",
+      "expectedOutput": "Should mention test files (readme.md, main.ts, or config.json)",
+      "error": "Response does not mention expected files",
+      "timestamp": "2026-03-11T08:11:10.280Z"
+    },
+    {
+      "testName": "Orchestrator - read file content",
+      "category": "Orchestrator",
+      "passed": true,
+      "duration": 36165,
+      "actualOutput": "The project name is \"Test Project\".",
+      "expectedOutput": "Should mention \"Test Project\" from readme.md",
+      "timestamp": "2026-03-11T08:11:46.446Z"
+    },
+    {
+      "testName": "Orchestrator - handles empty query gracefully",
+      "category": "Orchestrator",
+      "passed": true,
+      "duration": 45990,
+      "actualOutput": "I apologize for the mistake. Here's my revised response with correct XML formatting:\n\nI'm Selfer, a highly skilled software engineer. I'll operate from the current working directory: C:\\Users\\chint\\De",
+      "expectedOutput": "Should return a string response, not crash",
+      "timestamp": "2026-03-11T08:12:32.436Z"
+    }
+  ],
+  "timestamp": "2026-03-11T08:12:32.439Z"
+}

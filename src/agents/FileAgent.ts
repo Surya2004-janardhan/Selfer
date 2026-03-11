@@ -120,6 +120,15 @@ export class FileAgent extends BaseAgent {
                     const fullPath = this.safeResolvePath(args.path);
                     if (!fullPath) return { success: false, output: '', error: 'Path is outside the project root.' };
                     if (!fs.existsSync(fullPath)) return { success: false, output: '', error: `Path not found: ${args.path}` };
+                    
+                    // Require user approval for deletion
+                    const approved = await CLIGui.askPermission(
+                        `Delete ${args.path}? This action cannot be undone.`
+                    );
+                    if (!approved) {
+                        return { success: false, output: '', error: 'User denied permission to delete.' };
+                    }
+                    
                     const stats = fs.statSync(fullPath);
                     if (stats.isDirectory()) {
                         fs.rmSync(fullPath, { recursive: true, force: true });
@@ -130,6 +139,14 @@ export class FileAgent extends BaseAgent {
                 }
 
                 case 'execute_command': {
+                    // Require user approval for command execution
+                    const approved = await CLIGui.askPermission(
+                        `Execute command: ${args.command}`
+                    );
+                    if (!approved) {
+                        return { success: false, output: '', error: 'User denied permission to execute command.' };
+                    }
+                    
                     const { stdout, stderr } = await execAsync(args.command, {
                         cwd: this.projectRoot,
                         timeout: COMMAND_TIMEOUT_MS

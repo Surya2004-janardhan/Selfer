@@ -54,6 +54,14 @@ export class GitAgent extends BaseAgent {
                     return { success: true, output: diff || 'No staged changes to diff.' };
                 }
                 case 'git_commit': {
+                    // Require approval for commits
+                    const approved = await CLIGui.askPermission(
+                        `Commit all changes with message: "${args.message}"`
+                    );
+                    if (!approved) {
+                        return { success: false, output: '', error: 'User denied permission to commit.' };
+                    }
+                    
                     // Use '--all' to stage modifications and deletions of TRACKED files only.
                     // This respects .gitignore and does NOT blindly add untracked files.
                     await this.git.add('--all');
@@ -61,6 +69,14 @@ export class GitAgent extends BaseAgent {
                     return { success: true, output: `Committed with message: "${args.message}"` };
                 }
                 case 'git_push': {
+                    // Require approval for push
+                    const approved = await CLIGui.askPermission(
+                        `Push committed changes to remote origin?`
+                    );
+                    if (!approved) {
+                        return { success: false, output: '', error: 'User denied permission to push.' };
+                    }
+                    
                     await this.git.push();
                     return { success: true, output: 'Successfully pushed to origin.' };
                 }

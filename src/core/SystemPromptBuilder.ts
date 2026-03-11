@@ -45,7 +45,24 @@ EXAMPLE (writing a file):
 <content>export function hello() { return "world"; }</content>
 </write_file>
 
+EXAMPLE (executing a command):
+<execute_command>
+<command>npm install axios</command>
+<cwd>.</cwd>
+</execute_command>
+
+EXAMPLE (git operations):
+<git_commit>
+<message>Fix bug in parser</message>
+</git_commit>
+
+<git_revert>
+<commit>HEAD</commit>
+<mainline>1</mainline>
+</git_revert>
+
 CRITICAL: Each parameter MUST be wrapped in its own XML tags. Do NOT use "param: value" format.
+NEVER output raw shell commands like \`git revert\` - always use the appropriate tool.
 
 AVAILABLE TOOLS:
 ${tools.map(t => this.formatTool(t)).join('\n\n')}`;

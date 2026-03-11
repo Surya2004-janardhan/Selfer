@@ -37,7 +37,60 @@ export class GitAgent extends BaseAgent {
             {
                 name: 'git_push',
                 description: 'Pushes committed changes to the remote origin.',
-                parameters: { type: 'object', properties: {}, required: [] }
+                parameters: { 
+                    type: 'object', 
+                    properties: {
+                        force: { type: 'boolean', description: 'Force push (use with caution)' }
+                    }, 
+                    required: [] 
+                }
+            },
+            {
+                name: 'git_log',
+                description: 'Shows recent commit history.',
+                parameters: { 
+                    type: 'object', 
+                    properties: {
+                        count: { type: 'number', description: 'Number of commits to show (default: 10)' }
+                    }, 
+                    required: [] 
+                }
+            },
+            {
+                name: 'git_revert',
+                description: 'Reverts a specific commit. Creates a new commit that undoes the changes.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        commit: { type: 'string', description: 'Commit hash to revert (default: HEAD)' },
+                        noCommit: { type: 'boolean', description: 'Stage changes but do not commit' },
+                        mainline: { type: 'number', description: 'Parent number for merge commits (1 or 2)' }
+                    },
+                    required: []
+                }
+            },
+            {
+                name: 'git_reset',
+                description: 'Resets HEAD to a specific commit.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        commit: { type: 'string', description: 'Commit hash to reset to (default: HEAD~1)' },
+                        mode: { type: 'string', description: 'Reset mode: soft, mixed, or hard (default: mixed)' }
+                    },
+                    required: []
+                }
+            },
+            {
+                name: 'execute_git',
+                description: 'Execute an arbitrary git command. Use for advanced operations not covered by other tools.',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        args: { type: 'string', description: 'Git arguments (e.g., "branch -D feature")' }
+                    },
+                    required: ['args']
+                }
             }
         ];
     }
@@ -70,15 +123,72 @@ export class GitAgent extends BaseAgent {
                 }
                 case 'git_push': {
                     // Require approval for push
+                    const forceFlag = args.force ? ' --force' : '';
                     const approved = await CLIGui.askPermission(
-                        `Push committed changes to remote origin?`
+                        `Push committed changes to remote origin${forceFlag}?`
                     );
                     if (!approved) {
                         return { success: false, output: '', error: 'User denied permission to push.' };
                     }
                     
-                    await this.git.push();
+                    if (args.force) {
+                        await this.git.push(['--force']);
+                    } else {
+                        await this.git.push();
+                    }
                     return { success: true, output: 'Successfully pushed to origin.' };
+                }
+                case 'git_log': {
+                    const count = args.count || 10;
+                    const log = await this.git.log({ maxCount: count });
+                    const formatted = log.all.map(c => 
+                        `${c.hash.slice(0,7)} - ${c.message} (${c.author_name}, ${c.date})`
+                    ).join('\n');
+                    return { success: true, output: formatted || 'No commits found.' };
+                }
+                case 'git_revert': {
+                    const commit = args.commit || 'HEAD';
+                    const desc = args.mainline 
+                        ? `Revert merge commit ${commit} (mainline ${args.mainline})`
+                        : `Revert commit ${commit}`;
+                    
+                    const approved = await CLIGui.askPermission(desc);
+                    if (!approved) {
+                        return { success: false, output: '', error: 'User denied permission to revert.' };
+                    }
+                    
+                    const revertArgs: string[] = ['revert'];
+                    if (args.noCommit) revertArgs.push('--no-commit');
+                    if (args.mainline) revertArgs.push('-m', String(args.mainline));
+                    revertArgs.push(commit);
+                    
+                    const result = await this.git.raw(revertArgs);
+                    return { success: true, output: result || `Successfully reverted ${commit}` };
+                }
+                case 'git_reset': {
+                    const commit = args.commit || 'HEAD~1';
+                    const mode = args.mode || 'mixed';
+                    
+                    const approved = await CLIGui.askPermission(
+                        `Reset HEAD to ${commit} (${mode} mode)?`
+                    );
+                    if (!approved) {
+                        return { success: false, output: '', error: 'User denied permission to reset.' };
+                    }
+                    
+                    await this.git.reset([`--${mode}`, commit]);
+                    return { success: true, output: `Reset to ${commit} (${mode})` };
+                }
+                case 'execute_git': {
+                    const approved = await CLIGui.askPermission(
+                        `Execute: git ${args.args}`
+                    );
+                    if (!approved) {
+                        return { success: false, output: '', error: 'User denied permission to execute git command.' };
+                    }
+                    
+                    const result = await this.git.raw(args.args.split(' '));
+                    return { success: true, output: result || 'Command completed.' };
                 }
                 default:
                     return { success: false, output: '', error: `Unknown tool: ${name}` };

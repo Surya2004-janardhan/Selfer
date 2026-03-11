@@ -3,6 +3,7 @@ dist/
 .selfer/
 .selfer 
 aider/
-cline/.env
+cline/
+.env
 *.bak
 raw_plan_fail.txt

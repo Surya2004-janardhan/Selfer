@@ -9,6 +9,7 @@ import {
     OpenAIProvider,
     GeminiProvider,
     ClaudeProvider,
+    GroqProvider,
     FallbackLLMProvider,
     LLMProvider
 } from './LLMProvider';
@@ -37,6 +38,7 @@ export class Core {
                     openai: { apiKey: '', model: 'gpt-4o' },
                     gemini: { apiKey: '', model: 'gemini-1.5-pro' },
                     claude: { apiKey: '', model: 'claude-3-5-sonnet-20241022' },
+                    groq: { apiKey: '', model: 'llama-3.3-70b-versatile' },
                     ollama: { model: 'llama3:8b', baseUrl: 'http://localhost:11434' },
                     telegram: { enabled: false, botToken: '' },
                     master: 'Master'
@@ -92,6 +94,10 @@ export class Core {
         if (config.claude?.apiKey) {
             providersList.push({ name: 'Claude', provider: new ClaudeProvider(config.claude) });
             if (providersList.length === 1) activeModelName = config.claude.model || 'claude-3-5-sonnet-20241022';
+        }
+        if (config.groq?.apiKey) {
+            providersList.push({ name: 'Groq', provider: new GroqProvider(config.groq) });
+            if (providersList.length === 1) activeModelName = config.groq.model || 'llama-3.3-70b-versatile';
         }
         if (config.ollama?.model) {
             providersList.push({ name: 'Ollama', provider: new OllamaProvider(config.ollama) });

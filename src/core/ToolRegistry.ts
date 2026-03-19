@@ -1,5 +1,7 @@
 import { McpManager } from './McpManager';
 import { Logger } from '../utils/Logger';
+import { validateToolCall } from '../tools/validator';
+import { executeInSandbox } from '../tools/sandbox';
 
 export interface Tool {
     name: string;
@@ -74,6 +76,30 @@ export class ToolRegistry {
         if (!tool) {
             throw new Error(`Tool '${name}' not found. Available tools: ${Array.from(this.tools.keys()).join(', ')}`);
         }
+        // Validate arguments against known schemas (external validator)
+        try {
+            const validation = validateToolCall({ name, params: args });
+            if (!validation.ok) {
+                return { success: false, error: `Validation failed: ${JSON.stringify(validation.error)}` };
+            }
+        } catch (e: any) {
+            // If validator throws (unknown tool in external registry), we continue but log a warning
+            Logger.warn(`Validator error for tool '${name}': ${e?.message || e}`);
+        }
+
+        // If sandboxing is enabled, run risky tools inside a sandbox
+        try {
+            const sandboxMode = process.env.SELFER_SANDBOX === '1'
+            const risky = ['write_file', 'run_cmd', 'rename_file', 'git_commit', 'project_init']
+            if (sandboxMode && risky.includes(name)) {
+                // run in dry-run by default; actual execution requires explicit disable
+                const res = await executeInSandbox(name, args, { dryRun: true, root: process.cwd() })
+                return { success: true, data: res }
+            }
+        } catch (e: any) {
+            Logger.warn(`Sandbox execution failed: ${e?.message || e}`)
+        }
+
         return await tool.execute(args);
     }
 

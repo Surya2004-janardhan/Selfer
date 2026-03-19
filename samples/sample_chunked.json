@@ -1,0 +1,8 @@
+[
+  {
+    "function_call": {
+      "name": "write_file",
+      "arguments": "{\"files\": [{\"path\": \"test_output.txt\", \"content\": \"Hello from sandbox\"}]}"
+    }
+  }
+]

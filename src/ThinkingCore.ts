@@ -4,40 +4,57 @@ import { RadarSkill } from './skills/RadarSkill.js';
 import { PulseSkill } from './skills/PulseSkill.js';
 import { MemoryStore } from './memories/MemoryStore.js';
 import { TokenEstimator } from './utils/TokenEstimator.js';
+import { BaseProvider, ToolDefinition } from './providers/BaseProvider.js';
+import { OllamaProvider } from './providers/OllamaProvider.js';
+import { AnthropicProvider } from './providers/AnthropicProvider.js';
+import { PermissionManager } from './PermissionManager.js';
 
 export interface ThinkingCoreConfig {
   model: string;
   cwd: string;
   maxTurns?: number;
+  apiKey?: string;
 }
 
 export interface SelferMessage {
-  role: 'user' | 'assistant' | 'system';
+  role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
   timestamp: string;
+  tool_use_id?: string;
 }
 
 /**
  * ThinkingCore.ts
  * The primary AI orchestration loop for Project Selfer.
+ * Handles the logic of querying models and executing skills.
  */
 export class ThinkingCore {
   private config: ThinkingCoreConfig;
   private history: SelferMessage[];
   private skills: Map<string, any>;
   private memory: MemoryStore;
+  private provider: BaseProvider;
+  private permissionManager: PermissionManager;
 
   constructor(config: ThinkingCoreConfig) {
     this.config = config;
     this.history = [];
     this.skills = new Map();
     this.memory = new MemoryStore();
+    this.permissionManager = new PermissionManager();
     
-    // Register renamed skills
-    this.registerSkill(new DiskSkill());     // FileSystem (Renamed Disk)
-    this.registerSkill(new ConsoleSkill());  // Shell (Renamed Console)
-    this.registerSkill(new RadarSkill());    // Search (Renamed Radar)
-    this.registerSkill(new PulseSkill());    // Diagnostic
+    // Select Provider
+    if (config.model.includes('claude') && config.apiKey) {
+      this.provider = new AnthropicProvider(config.apiKey, config.model);
+    } else {
+      this.provider = new OllamaProvider();
+    }
+
+    // Register skills
+    this.registerSkill(new DiskSkill());
+    this.registerSkill(new ConsoleSkill());
+    this.registerSkill(new RadarSkill());
+    this.registerSkill(new PulseSkill());
   }
 
   private registerSkill(skill: any) {
@@ -48,33 +65,95 @@ export class ThinkingCore {
     await this.memory.initialize();
   }
 
+  private getToolDefinitions(): ToolDefinition[] {
+    return Array.from(this.skills.values()).map(skill => ({
+      name: skill.name,
+      description: skill.description,
+      input_schema: (skill.schema as any)._def // Simplified extraction for Phase 1
+    }));
+  }
+
   async *submitMessage(prompt: string): AsyncGenerator<any, void, unknown> {
-    const userMsg: SelferMessage = {
+    this.history.push({
       role: 'user',
       content: prompt,
       timestamp: new Date().toISOString()
-    };
-    this.history.push(userMsg);
+    });
 
-    yield {
-      type: 'thinking',
-      content: `Selfer (Thinking) with model: ${this.config.model}...`
-    };
+    let turns = 0;
+    const maxTurns = this.config.maxTurns ?? 10;
 
-    // Logic for Phase 2: Integrated Capability execution
-    // (Actual tool loops would go here in Phase 3 after UI polish)
-    
-    const responseMsg: SelferMessage = {
-      role: 'assistant',
-      content: 'Phase 2 capabilities (Disk, Console, Radar, Pulse) have been integrated and renamed. Ready for Phase 3 UI development.',
-      timestamp: new Date().toISOString()
-    };
-    this.history.push(responseMsg);
+    while (turns < maxTurns) {
+      turns++;
 
-    yield {
-      type: 'assistant',
-      content: responseMsg.content,
-      tokens: TokenEstimator.estimateTotal(this.history)
-    };
+      yield {
+        type: 'thinking',
+        content: `Thinking... (Turn ${turns}/${maxTurns})`
+      };
+
+      const response = await this.provider.generate(
+        this.history as any,
+        this.getToolDefinitions()
+      );
+
+      if (response.content) {
+        this.history.push({
+          role: 'assistant',
+          content: response.content,
+          timestamp: new Date().toISOString()
+        });
+
+        yield {
+          type: 'assistant',
+          content: response.content,
+          tokens: response.tokensUsed
+        };
+      }
+
+      // Handle tool calls
+      if (response.toolCalls && response.toolCalls.length > 0) {
+        for (const call of response.toolCalls) {
+          const skill = this.skills.get(call.name);
+          if (skill) {
+            // Security check
+            const decision = await this.permissionManager.checkPermission(call.name, call.input);
+            if (decision === 'deny') {
+              this.history.push({
+                role: 'tool',
+                content: 'Error: Execution denied by user permission policy.',
+                timestamp: new Date().toISOString(),
+                tool_use_id: call.id
+              } as any);
+              continue;
+            }
+
+            yield {
+              type: 'progress',
+              content: `Executing skill: ${call.name}...`
+            };
+
+            const result = await skill.execute(call.input);
+            
+            this.history.push({
+              role: 'tool',
+              content: result.content,
+              timestamp: new Date().toISOString(),
+              tool_use_id: call.id
+            } as any);
+
+            yield {
+              type: 'result',
+              content: `Skill ${call.name} finished.`,
+              isError: result.isError
+            };
+          }
+        }
+        // Continue the loop to let the model react to tool results
+        continue;
+      }
+
+      // No more tool calls, exit loop
+      break;
+    }
   }
 }

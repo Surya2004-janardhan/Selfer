@@ -17,7 +17,7 @@ export class AnthropicProvider extends BaseProvider {
     tools?: ToolDefinition[]
   ): Promise<ProviderResponse> {
     const formattedMessages = messages.map(msg => ({
-      role: msg.role === 'assistant' ? 'assistant' : 'user',
+      role: (msg.role === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
       content: msg.content
     }));
 
@@ -39,7 +39,7 @@ export class AnthropicProvider extends BaseProvider {
         input: block.input
       })),
       tokensUsed: response.usage.input_tokens + response.usage.output_tokens,
-      stopReason: response.stop_reason
+      stopReason: response.stop_reason ?? undefined
     };
   }
 }

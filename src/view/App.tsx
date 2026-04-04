@@ -43,14 +43,31 @@ export const App: React.FC<AppProps> = ({ core, registry, modelName, providerNam
     setState('thinking');
     
     // Core submission loop
-    const generator = core.submitMessage(currentQuery);
-    for await (const chunk of generator) {
-      if (chunk.type === 'assistant') {
-        setMessages((prev) => [...prev, { role: 'assistant', content: chunk.content }]);
-        if (chunk.tokens) setTotalTokens(t => t + chunk.tokens);
-        setState('result');
+    try {
+      const generator = core.submitMessage(currentQuery);
+      for await (const chunk of generator) {
+        if (chunk.type === 'assistant') {
+          setMessages((prev) => [...prev, { role: 'assistant', content: chunk.content }]);
+          if (chunk.tokens) setTotalTokens(t => t + chunk.tokens);
+          setState('result');
+        }
       }
+    } catch (error: any) {
+      setMessages((prev) => [...prev, { role: 'error', content: error.message }]);
+      setState('idle');
     }
+  };
+
+  const getMessageColor = (role: string) => {
+    if (role === 'user') return Theme.accent;
+    if (role === 'error') return Theme.error;
+    return Theme.success;
+  };
+
+  const getMessagePrefix = (role: string) => {
+    if (role === 'user') return 'λ USER ';
+    if (role === 'error') return '✘ ERROR ';
+    return 'δ SELFER ';
   };
 
   return (
@@ -58,9 +75,9 @@ export const App: React.FC<AppProps> = ({ core, registry, modelName, providerNam
       {/* Top Status Bar (Cozy Dev style) */}
       <Box borderStyle="single" borderColor={Theme.muted} paddingX={1} marginBottom={1} justifyContent="space-between">
         <Box>
-            <SelferMascot state={state} />
+            <SelferMascot state={state === 'idle' && messages.some(m => m.role === 'error') ? 'idle' : state} />
             <Box marginLeft={2}>
-                <Text color={Theme.accent} bold>SELFER v2.0</Text>
+                <Text color={Theme.accent} bold>SELFER v2.2.0</Text>
                 <Text color={Theme.muted}> │ </Text>
                 <Text color={Theme.secondary}>{providerName.toUpperCase()}</Text>
                 <Text color={Theme.muted}> › </Text>
@@ -83,13 +100,13 @@ export const App: React.FC<AppProps> = ({ core, registry, modelName, providerNam
         {messages.map((msg, i) => (
           <Box key={i} marginBottom={1} flexDirection="column">
             <Box>
-                <Text color={msg.role === 'user' ? Theme.accent : Theme.success} bold>
-                {msg.role === 'user' ? 'λ USER ' : 'δ SELFER '}
+                <Text color={getMessageColor(msg.role)} bold>
+                {getMessagePrefix(msg.role)}
                 </Text>
                 <Text color={Theme.muted}>—</Text>
             </Box>
             <Box marginLeft={2} paddingY={0}>
-                <Text color={Theme.foreground}>{msg.content}</Text>
+                <Text color={msg.role === 'error' ? Theme.error : Theme.foreground}>{msg.content}</Text>
             </Box>
           </Box>
         ))}

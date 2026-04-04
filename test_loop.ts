@@ -2,7 +2,7 @@ import { ThinkingCore } from './src/ThinkingCore.js';
 
 async function testLoop() {
   const core = new ThinkingCore({
-    model: 'llama3.2', // Defaults to Ollama
+    model: 'mock', 
     cwd: process.cwd()
   });
 

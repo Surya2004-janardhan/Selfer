@@ -1,12 +1,24 @@
 import { DiskSkill } from './skills/DiskSkill.js';
 import { ConsoleSkill } from './skills/ConsoleSkill.js';
 import { RadarSkill } from './skills/RadarSkill.js';
+import { GlobSkill } from './skills/GlobSkill.js';
 import { PulseSkill } from './skills/PulseSkill.js';
+import { InquirySkill } from './skills/InquirySkill.js';
+import { AwaitSkill } from './skills/AwaitSkill.js';
+import { WebScoutSkill } from './skills/WebScoutSkill.js';
+import { ConnectMcpSkill } from './skills/ConnectMcpSkill.js';
+import { CodeAwarenessSkill } from './skills/CodeAwarenessSkill.js';
+import { TemporalSyncSkill } from './skills/TemporalSyncSkill.js';
+import { AgenticSwarmSkill } from './skills/AgenticSwarmSkill.js';
+import { TaskSkill } from './skills/TaskSkill.js';
+import { RelaySkill } from './skills/RelaySkill.js';
+import { InsightSkill } from './skills/InsightSkill.js';
 import { MemoryStore } from './memories/MemoryStore.js';
 import { TokenEstimator } from './utils/TokenEstimator.js';
 import { BaseProvider, ToolDefinition } from './providers/BaseProvider.js';
 import { OllamaProvider } from './providers/OllamaProvider.js';
 import { AnthropicProvider } from './providers/AnthropicProvider.js';
+import { MockProvider } from './providers/MockProvider.js';
 import { PermissionManager } from './PermissionManager.js';
 
 export interface ThinkingCoreConfig {
@@ -44,17 +56,30 @@ export class ThinkingCore {
     this.permissionManager = new PermissionManager();
     
     // Select Provider
-    if (config.model.includes('claude') && config.apiKey) {
+    if (config.model === 'mock') {
+      this.provider = new MockProvider();
+    } else if (config.model.includes('claude') && config.apiKey) {
       this.provider = new AnthropicProvider(config.apiKey, config.model);
     } else {
       this.provider = new OllamaProvider();
     }
 
-    // Register skills
+    // Register skills (Phase 2 Expanded Set)
     this.registerSkill(new DiskSkill());
     this.registerSkill(new ConsoleSkill());
     this.registerSkill(new RadarSkill());
+    this.registerSkill(new GlobSkill());
     this.registerSkill(new PulseSkill());
+    this.registerSkill(new InquirySkill());
+    this.registerSkill(new AwaitSkill());
+    this.registerSkill(new WebScoutSkill());
+    this.registerSkill(new ConnectMcpSkill());
+    this.registerSkill(new CodeAwarenessSkill());
+    this.registerSkill(new TemporalSyncSkill());
+    this.registerSkill(new AgenticSwarmSkill());
+    this.registerSkill(new TaskSkill());
+    this.registerSkill(new RelaySkill());
+    this.registerSkill(new InsightSkill());
   }
 
   private registerSkill(skill: any) {

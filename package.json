@@ -21,6 +21,7 @@
   "homepage": "https://github.com/Surya2004-janardhan/Selfer#readme",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.82.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "axios": "^1.14.0",
     "chalk": "^4.1.2",
     "commander": "^14.0.3",

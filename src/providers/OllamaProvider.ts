@@ -16,21 +16,31 @@ export class OllamaProvider extends BaseProvider {
     messages: Array<any>,
     tools?: ToolDefinition[]
   ): Promise<ProviderResponse> {
-    const data = {
-      model: this.model,
-      messages,
-      tools,
-      stream: false
-    };
-
     try {
-      const response = await axios.post(this.endpoint, data);
+      const data = {
+        model: this.model,
+        messages: messages.map(m => ({ 
+          role: m.role, 
+          content: m.content 
+        })),
+        tools: tools?.map(t => ({
+          type: 'function',
+          function: {
+            name: t.name,
+            description: t.description,
+            parameters: t.input_schema
+          }
+        })),
+        stream: false
+      };
+
+      const response = await axios.post(this.endpoint, data, { timeout: 30000 });
       const msg = response.data.message;
 
       return {
         content: msg.content,
         toolCalls: msg.tool_calls?.map((tc: any) => ({
-          id: tc.id || `call_${crypto.randomUUID()}`,
+          id: tc.id || `call_${Math.random().toString(36).substring(7)}`,
           name: tc.function.name,
           input: tc.function.arguments
         })),
@@ -38,8 +48,10 @@ export class OllamaProvider extends BaseProvider {
         stopReason: response.data.done_reason
       };
     } catch (error: any) {
-      console.error('Ollama Error:', error.message);
-      throw new Error('Local Ollama server connection lost.');
+      if (error.code === 'ECONNREFUSED' || error.response?.status === 404) {
+        throw new Error(`Ollama Error: Model "${this.model}" not found or Ollama is not running at ${this.endpoint}.`);
+      }
+      throw new Error(`Ollama Error: ${error.message}`);
     }
   }
 }

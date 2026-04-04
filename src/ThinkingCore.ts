@@ -18,8 +18,10 @@ import { TokenEstimator } from './utils/TokenEstimator.js';
 import { BaseProvider, ToolDefinition } from './providers/BaseProvider.js';
 import { OllamaProvider } from './providers/OllamaProvider.js';
 import { AnthropicProvider } from './providers/AnthropicProvider.js';
+import { OpenAIProvider } from './providers/OpenAIProvider.js';
 import { MockProvider } from './providers/MockProvider.js';
 import { PermissionManager } from './PermissionManager.js';
+import { SelferConfig } from './utils/ConfigManager.js';
 
 export interface ThinkingCoreConfig {
   model: string;
@@ -48,20 +50,25 @@ export class ThinkingCore {
   private provider: BaseProvider;
   private permissionManager: PermissionManager;
 
-  constructor(config: ThinkingCoreConfig) {
+  constructor(config: ThinkingCoreConfig, selferConfig?: SelferConfig) {
     this.config = config;
     this.history = [];
     this.skills = new Map();
     this.memory = new MemoryStore();
     this.permissionManager = new PermissionManager();
     
-    // Select Provider
+    // Select Provider based on persistent config or manual override
+    const providerType = selferConfig?.provider || (config.model.includes('claude') ? 'anthropic' : (config.model.includes('gpt') ? 'openai' : 'ollama'));
+    const model = selferConfig?.model || config.model;
+
     if (config.model === 'mock') {
       this.provider = new MockProvider();
-    } else if (config.model.includes('claude') && config.apiKey) {
-      this.provider = new AnthropicProvider(config.apiKey, config.model);
+    } else if (providerType === 'anthropic' && (selferConfig?.anthropicKey || config.apiKey)) {
+      this.provider = new AnthropicProvider(selferConfig?.anthropicKey || config.apiKey!, model);
+    } else if (providerType === 'openai' && (selferConfig?.openaiKey || config.apiKey)) {
+      this.provider = new OpenAIProvider(selferConfig?.openaiKey || config.apiKey!, model);
     } else {
-      this.provider = new OllamaProvider();
+      this.provider = new OllamaProvider(selferConfig?.ollamaEndpoint, model);
     }
 
     // Register skills (Phase 2 Expanded Set)
@@ -96,6 +103,12 @@ export class ThinkingCore {
       description: skill.description,
       input_schema: (skill.schema as any)._def // Simplified extraction for Phase 1
     }));
+  }
+
+  public async executeSkillDirect(skillName: string, input: any) {
+    const skill = this.skills.get(skillName);
+    if (!skill) return { content: `Unknown skill: ${skillName}`, isError: true };
+    return await skill.execute(input);
   }
 
   async *submitMessage(prompt: string): AsyncGenerator<any, void, unknown> {

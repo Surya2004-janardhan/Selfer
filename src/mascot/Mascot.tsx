@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Text, Box } from 'ink';
+import { Theme } from '../view/Theme.js';
 
 /**
  * Mascot.tsx
- * Interactive terminal mascot for Selfer.
- * (Inspired by the reference's 'buddy')
+ * "Cozy Dev" robot mascot for Selfer 2.0.
  */
 
 export const SelferMascot: React.FC<{ state: 'idle' | 'thinking' | 'result' }> = ({ state }) => {
@@ -13,20 +13,26 @@ export const SelferMascot: React.FC<{ state: 'idle' | 'thinking' | 'result' }> =
   useEffect(() => {
     const timer = setInterval(() => {
       setFrame((f) => (f + 1) % 4);
-    }, 200);
+    }, 400); // Slower, more cozy animation
     return () => clearInterval(timer);
   }, []);
 
-  const frames = {
-    idle: ['( o_o )', '( -_- )', '( o_o )', '( ^_^ )'],
-    thinking: ['( .   )', '(  .  )', '(   . )', '(  .  )'],
-    result: ['( ^▿^ )', '( *o* )', '( ^▿^ )', '( ^_^ )']
+  const icons = {
+    idle: ['[ ◕ᴗ◕ ]', '[ ◕◡◕ ]', '[ ◕ᴗ◕ ]', '[ ^ᴗ^ ]'],
+    thinking: ['[ .   ]', '[  .  ]', '[   . ]', '[  .  ]'],
+    result: ['[ ◕‿◕ ]', '[ *o* ]', '[ ◕‿◕ ]', '[ ^‿^ ]']
+  };
+
+  const getColor = () => {
+    if (state === 'thinking') return Theme.accent;
+    if (state === 'result') return Theme.success;
+    return Theme.secondary;
   };
 
   return (
     <Box>
-      <Text color="#00FF00" bold>
-        {frames[state][frame]}
+      <Text color={getColor()} bold>
+        {icons[state][frame]}
       </Text>
     </Box>
   );

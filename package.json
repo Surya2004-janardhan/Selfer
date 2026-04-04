@@ -1,0 +1,42 @@
+{
+  "name": "selfer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "selfer": "tsx selfer.tsx",
+    "start": "tsx selfer.tsx run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Surya2004-janardhan/Selfer.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Surya2004-janardhan/Selfer/issues"
+  },
+  "homepage": "https://github.com/Surya2004-janardhan/Selfer#readme",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.82.0",
+    "axios": "^1.14.0",
+    "chalk": "^4.1.2",
+    "commander": "^14.0.3",
+    "ink": "^6.8.0",
+    "ink-text-input": "^6.0.0",
+    "openai": "^6.33.0",
+    "react": "^19.2.4",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "ink-testing-library": "^4.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.2"
+  },
+  "type": "module"
+}

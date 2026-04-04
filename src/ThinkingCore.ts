@@ -111,6 +111,13 @@ export class ThinkingCore {
     return await skill.execute(input);
   }
 
+  public getSkillList(): { name: string, description: string }[] {
+    return Array.from(this.skills.values()).map(s => ({
+      name: s.name,
+      description: s.description
+    }));
+  }
+
   async *submitMessage(prompt: string): AsyncGenerator<any, void, unknown> {
     this.history.push({
       role: 'user',

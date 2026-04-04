@@ -44,7 +44,7 @@ export class OllamaProvider extends BaseProvider {
           name: tc.function.name,
           input: tc.function.arguments
         })),
-        tokensUsed: response.data.eval_count || 0,
+        tokensUsed: (response.data.prompt_eval_count || 0) + (response.data.eval_count || 0),
         stopReason: response.data.done_reason
       };
     } catch (error: any) {

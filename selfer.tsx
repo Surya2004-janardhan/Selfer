@@ -12,7 +12,14 @@ const program = new Command();
 const configManager = new ConfigManager();
 
 async function runSetup(): Promise<SelferConfig> {
-  console.log('\n🛠️  Selfer Configuration Setup\n');
+  process.stdout.write('\x1Bc'); 
+  console.log('\n🛠️  Selfer Configuration Setup [v2.1.0]\n');
+  console.log('Available Providers:');
+  console.log('- ollama: Local models (llama3.2, qwen2.5, codegemma)');
+  console.log('- anthropic: Claude cloud models (claude-3-5-sonnet-20241022)');
+  console.log('- openai: GPT cloud models (gpt-4o, gpt-4-turbo)');
+  console.log('- mock: Deterministic testing for dev\n');
+
   const answers = await inquirer.prompt([
     {
       type: 'list',
@@ -23,8 +30,13 @@ async function runSetup(): Promise<SelferConfig> {
     {
       type: 'input',
       name: 'model',
-      message: 'Enter the model name (e.g. gpt-4o, claude-3-5-sonnet, llama3.2):',
-      default: (ans: any) => ans.provider === 'ollama' ? 'llama3.2' : (ans.provider === 'anthropic' ? 'claude-3-5-sonnet-20241022' : 'gpt-4o')
+      message: 'Enter the model name:',
+      default: (ans: any) => {
+        if (ans.provider === 'ollama') return 'llama3.2';
+        if (ans.provider === 'anthropic') return 'claude-3-5-sonnet-20241022';
+        if (ans.provider === 'openai') return 'gpt-4o';
+        return 'mock-agent';
+      }
     },
     {
       type: 'password',
@@ -44,8 +56,18 @@ async function runSetup(): Promise<SelferConfig> {
         message: 'Enter Ollama API Endpoint:',
         default: 'http://localhost:11434/api/chat',
         when: (ans: any) => ans.provider === 'ollama'
+    },
+    {
+      type: 'confirm',
+      name: 'confirm',
+      message: 'Does this look correct?',
+      default: true
     }
-  ]) as SelferConfig;
+  ]) as SelferConfig & { confirm: boolean };
+
+  if (!answers.confirm) {
+    return await runSetup();
+  }
 
   await configManager.saveConfig(answers);
   console.log('\n✅ Configuration saved!\n');
@@ -55,7 +77,7 @@ async function runSetup(): Promise<SelferConfig> {
 program
   .name('selfer')
   .description('A self-improving CLI AI agent')
-  .version('2.0.0');
+  .version('2.1.0');
 
 program
   .command('setup')

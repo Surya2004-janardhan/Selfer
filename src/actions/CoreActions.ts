@@ -38,13 +38,22 @@ export function registerCoreActions(registry: CommandRegistry, core: ThinkingCor
     }
   });
 
-  // /help - List all actions
+  // /help - List all actions and skills
   registry.register({
     name: 'help',
-    description: 'Show all available Selfer actions.',
+    description: 'Show all available Selfer actions and AI capabilities.',
     execute: async () => {
       const actions = registry.getActions();
-      return 'Available Selfer Actions:\n' + actions.map(a => `/${a.name} - ${a.description}`).join('\n');
+      const skills = core.getSkillList();
+      
+      let help = '🚀 Selfer v2.1.0 - Interactive Help\n\n';
+      help += '--- Manual Slash Commands ---\n';
+      help += actions.map(a => `/${a.name.padEnd(8)} - ${a.description}`).join('\n');
+      
+      help += '\n\n--- Autonomous AI Skills (What I can do for you) ---\n';
+      help += skills.map(s => `${s.name.padEnd(16)}: ${s.description}`).join('\n');
+      
+      return help;
     }
   });
 }

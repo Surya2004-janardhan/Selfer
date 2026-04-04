@@ -8,33 +8,60 @@ import { registerCoreActions } from './src/actions/CoreActions.js';
 import { ConfigManager, SelferConfig } from './src/utils/ConfigManager.js';
 import inquirer from 'inquirer';
 
+import axios from 'axios';
+
 const program = new Command();
 const configManager = new ConfigManager();
 
+async function getOllamaModels(): Promise<string[]> {
+  try {
+    const response = await axios.get('http://localhost:11434/api/tags', { timeout: 2000 });
+    return response.data.models.map((m: any) => m.name);
+  } catch {
+    return [];
+  }
+}
+
 async function runSetup(): Promise<SelferConfig> {
   process.stdout.write('\x1Bc'); 
-  console.log('\n🛠️  Selfer Configuration Setup [v2.1.0]\n');
-  console.log('Available Providers:');
-  console.log('- ollama: Local models (llama3.2, qwen2.5, codegemma)');
-  console.log('- anthropic: Claude cloud models (claude-3-5-sonnet-20241022)');
-  console.log('- openai: GPT cloud models (gpt-4o, gpt-4-turbo)');
-  console.log('- mock: Deterministic testing for dev\n');
-
-  const answers = await inquirer.prompt([
+  console.log('\n🛠️  Selfer Configuration Setup [v2.2.0]\n');
+  
+  // Phase 1: Provider Selection
+  const { provider } = await inquirer.prompt([
     {
       type: 'list',
       name: 'provider',
       message: 'Select your AI Provider:',
-      choices: ['ollama', 'anthropic', 'openai', 'mock']
-    },
+      choices: [
+        { name: 'Ollama (Local Models)', value: 'ollama' },
+        { name: 'Anthropic (Claude Cloud)', value: 'anthropic' },
+        { name: 'OpenAI (GPT Cloud)', value: 'openai' },
+        { name: 'Mock (Developer Test)', value: 'mock' }
+      ]
+    }
+  ]);
+
+  console.log(`\n🔍 Checking ${provider} status...`);
+  let modelChoices: string[] = [];
+  if (provider === 'ollama') {
+    modelChoices = await getOllamaModels();
+    if (modelChoices.length > 0) {
+      console.log(`✅ Found ${modelChoices.length} local models.\n`);
+    } else {
+      console.log('⚠️  No local models found or Ollama is offline. You will need to enter the name manually.\n');
+    }
+  }
+
+  const answers = await inquirer.prompt([
     {
-      type: 'input',
+      type: modelChoices.length > 0 ? 'list' : 'input',
       name: 'model',
-      message: 'Enter the model name:',
-      default: (ans: any) => {
-        if (ans.provider === 'ollama') return 'llama3.2';
-        if (ans.provider === 'anthropic') return 'claude-3-5-sonnet-20241022';
-        if (ans.provider === 'openai') return 'gpt-4o';
+      message: 'Select or enter the model name:',
+      choices: modelChoices.length > 0 ? modelChoices : undefined,
+      default: () => {
+        if (provider === 'ollama') return 'llama3.2';
+        if (provider === 'anthropic') return 'claude-3-5-sonnet-20241022';
+        if (provider === 'openai') return 'gpt-4o';
         return 'mock-agent';
       }
     },
@@ -42,20 +69,20 @@ async function runSetup(): Promise<SelferConfig> {
       type: 'password',
       name: 'anthropicKey',
       message: 'Enter your Anthropic API Key:',
-      when: (ans: any) => ans.provider === 'anthropic'
+      when: () => provider === 'anthropic'
     },
     {
       type: 'password',
       name: 'openaiKey',
       message: 'Enter your OpenAI API Key:',
-      when: (ans: any) => ans.provider === 'openai'
+      when: () => provider === 'openai'
     },
     {
         type: 'input',
         name: 'ollamaEndpoint',
         message: 'Enter Ollama API Endpoint:',
         default: 'http://localhost:11434/api/chat',
-        when: (ans: any) => ans.provider === 'ollama'
+        when: () => provider === 'ollama'
     },
     {
       type: 'confirm',
@@ -63,21 +90,29 @@ async function runSetup(): Promise<SelferConfig> {
       message: 'Does this look correct?',
       default: true
     }
-  ]) as SelferConfig & { confirm: boolean };
+  ]) as any;
+
+  const finalConfig: SelferConfig = { 
+    provider: provider as any, 
+    model: answers.model,
+    anthropicKey: answers.anthropicKey,
+    openaiKey: answers.openaiKey,
+    ollamaEndpoint: answers.ollamaEndpoint
+  };
 
   if (!answers.confirm) {
     return await runSetup();
   }
 
-  await configManager.saveConfig(answers);
+  await configManager.saveConfig(finalConfig);
   console.log('\n✅ Configuration saved!\n');
-  return answers;
+  return finalConfig;
 }
 
 program
   .name('selfer')
   .description('A self-improving CLI AI agent')
-  .version('2.1.0');
+  .version('2.2.0');
 
 program
   .command('setup')

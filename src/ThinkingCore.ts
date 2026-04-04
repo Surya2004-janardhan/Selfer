@@ -118,6 +118,14 @@ export class ThinkingCore {
     }));
   }
 
+  public getProviderName(): string {
+    return this.provider.name;
+  }
+
+  public getModelName(): string {
+    return this.config.model;
+  }
+
   async *submitMessage(prompt: string): AsyncGenerator<any, void, unknown> {
     this.history.push({
       role: 'user',

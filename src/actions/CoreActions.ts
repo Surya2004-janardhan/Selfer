@@ -56,4 +56,19 @@ export function registerCoreActions(registry: CommandRegistry, core: ThinkingCor
       return help;
     }
   });
+
+  // /config - System diagnostics
+  registry.register({
+    name: 'config',
+    description: 'Show active provider and model configuration.',
+    execute: async () => {
+      const skills = core.getSkillList();
+      return `🛠️ Selfer Environment Config:\n` +
+             `--------------------------\n` +
+             `Provider : ${core.getProviderName()}\n` +
+             `Model    : ${core.getModelName()}\n` +
+             `Skills   : ${skills.length} active\n` +
+             `CWD      : ${process.cwd()}`;
+    }
+  });
 }

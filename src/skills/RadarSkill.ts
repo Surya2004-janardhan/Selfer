@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { z } from 'zod';
-import { BaseSkill, SkillResult } from './BaseSkill';
+import { BaseSkill, SkillResult } from './BaseSkill.js';
 
 export class RadarSkill extends BaseSkill {
   name = 'RadarSkill';

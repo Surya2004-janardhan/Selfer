@@ -1,7 +1,7 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { z } from 'zod';
-import { BaseSkill, SkillResult } from './BaseSkill';
+import { BaseSkill, SkillResult } from './BaseSkill.js';
 
 const execPromise = promisify(exec);
 

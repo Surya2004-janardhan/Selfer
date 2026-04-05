@@ -9,10 +9,7 @@
     "strict": true,
     "skipLibCheck": true,
     "jsx": "react",
-    "baseUrl": ".",
-    "paths": {
-      "src/*": ["src/*"]
-    }
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src/**/*", "selfer.tsx"]
 }

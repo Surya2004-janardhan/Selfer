@@ -65,7 +65,7 @@ export class ThinkingCore {
     this.historyStore = new HistoryStore();
     this.taskManager = new TaskManager();
     this.costTracker = new CostTracker();
-    
+
     // Select Provider based on persistent config or manual override
     const providerType = selferConfig?.provider || (config.model.includes('claude') ? 'anthropic' : (config.model.includes('gpt') ? 'openai' : 'ollama'));
     const model = selferConfig?.model || config.model;
@@ -190,9 +190,16 @@ export class ThinkingCore {
         );
 
         let accumulatedContent = '';
-        let toolCalls: any[] | undefined;
+        let finalResponse: any = {};
 
-        for await (const chunk of generator) {
+        // Drive the generator manually so we capture the return value (done:true)
+        while (true) {
+          const { value, done } = await generator.next();
+          if (done) {
+            finalResponse = value ?? {};
+            break;
+          }
+          const chunk = value;
           if (chunk.type === 'content' && chunk.content) {
             accumulatedContent += chunk.content;
             yield { type: 'chunk', content: chunk.content };
@@ -200,10 +207,6 @@ export class ThinkingCore {
             yield { type: 'progress', content: `Preparing skill: ${chunk.name}...` };
           }
         }
-
-        // The generator's return value is the final result
-        const response = await (generator as any).next();
-        const finalResponse = response.value;
 
         // Track usage
         await this.costTracker.record(
@@ -213,14 +216,20 @@ export class ThinkingCore {
           finalResponse?.outputTokens || 0
         );
 
-        if (finalResponse?.content) {
+        // Merge streamed chunks into final content if provider didn't include it
+        const finalContent = finalResponse?.content || accumulatedContent;
+        if (finalContent) {
           const assistantMessage: SelferMessage = {
             role: 'assistant',
-            content: finalResponse.content,
+            content: finalContent,
             timestamp: new Date().toISOString()
           };
           this.history.push(assistantMessage);
           await this.historyStore.appendEntry(assistantMessage);
+          // Only emit `assistant` event if content wasn't already streamed as chunks
+          if (!accumulatedContent) {
+            yield { type: 'assistant', content: finalContent };
+          }
         }
 
         // Handle tool calls
@@ -242,7 +251,7 @@ export class ThinkingCore {
 
               yield { type: 'progress', content: `Executing skill: ${call.name}...` };
               const result = await skill.execute(call.input, this);
-              
+
               const toolResultMsg: SelferMessage = {
                 role: 'tool',
                 content: result.content,

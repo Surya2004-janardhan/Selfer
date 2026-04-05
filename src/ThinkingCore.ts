@@ -22,6 +22,9 @@ import { OpenAIProvider } from './providers/OpenAIProvider.js';
 import { MockProvider } from './providers/MockProvider.js';
 import { PermissionManager } from './PermissionManager.js';
 import { SelferConfig } from './utils/ConfigManager.js';
+import { HistoryStore } from './history/HistoryStore.js';
+import { TaskManager } from './tasks/TaskManager.js';
+import { CostTracker } from './utils/CostTracker.js';
 
 export interface ThinkingCoreConfig {
   model: string;
@@ -49,6 +52,9 @@ export class ThinkingCore {
   private memory: MemoryStore;
   private provider: BaseProvider;
   private permissionManager: PermissionManager;
+  private historyStore: HistoryStore;
+  private taskManager: TaskManager;
+  private costTracker: CostTracker;
 
   constructor(config: ThinkingCoreConfig, selferConfig?: SelferConfig) {
     this.config = config;
@@ -56,6 +62,9 @@ export class ThinkingCore {
     this.skills = new Map();
     this.memory = new MemoryStore();
     this.permissionManager = new PermissionManager();
+    this.historyStore = new HistoryStore();
+    this.taskManager = new TaskManager();
+    this.costTracker = new CostTracker();
     
     // Select Provider based on persistent config or manual override
     const providerType = selferConfig?.provider || (config.model.includes('claude') ? 'anthropic' : (config.model.includes('gpt') ? 'openai' : 'ollama'));
@@ -95,6 +104,21 @@ export class ThinkingCore {
 
   async initialize() {
     await this.memory.initialize();
+    await this.taskManager.initialize();
+    await this.costTracker.initialize();
+  }
+
+  public getTaskManager() { return this.taskManager; }
+  public getCostStats() { return this.costTracker.getStats(); }
+
+  private truncateHistory() {
+    const MAX_TURNS = 15;
+    if (this.history.length > MAX_TURNS * 2) {
+      // Keep system message if it exists, then take the last X messages
+      const systemMessage = this.history.find(m => m.role === 'system');
+      const recentHistory = this.history.slice(-MAX_TURNS * 2);
+      this.history = systemMessage ? [systemMessage, ...recentHistory] : recentHistory;
+    }
   }
 
   private getToolDefinitions(): ToolDefinition[] {
@@ -127,11 +151,15 @@ export class ThinkingCore {
   }
 
   async *submitMessage(prompt: string): AsyncGenerator<any, void, unknown> {
-    this.history.push({
+    const userMessage: SelferMessage = {
       role: 'user',
       content: prompt,
       timestamp: new Date().toISOString()
-    });
+    };
+    this.history.push(userMessage);
+    await this.historyStore.appendEntry(userMessage);
+
+    this.truncateHistory();
 
     let turns = 0;
     const maxTurns = this.config.maxTurns ?? 10;
@@ -149,12 +177,22 @@ export class ThinkingCore {
         this.getToolDefinitions()
       );
 
+      // Track usage
+      await this.costTracker.record(
+        this.provider.name,
+        this.config.model,
+        (response as any).inputTokens || 0,
+        (response as any).outputTokens || 0
+      );
+
       if (response.content) {
-        this.history.push({
+        const assistantMessage: SelferMessage = {
           role: 'assistant',
           content: response.content,
           timestamp: new Date().toISOString()
-        });
+        };
+        this.history.push(assistantMessage);
+        await this.historyStore.appendEntry(assistantMessage);
 
         yield {
           type: 'assistant',

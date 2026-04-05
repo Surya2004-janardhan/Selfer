@@ -24,7 +24,7 @@ async function getOllamaModels(): Promise<string[]> {
 
 async function runSetup(): Promise<SelferConfig> {
   process.stdout.write('\x1Bc'); 
-  console.log('\n🛠️  Selfer Configuration Setup [v2.2.0]\n');
+  console.log('\n🛠️  Selfer Configuration Setup [v3.0.0]\n');
   
   // Phase 1: Provider Selection
   const { provider } = await inquirer.prompt([
@@ -112,7 +112,7 @@ async function runSetup(): Promise<SelferConfig> {
 program
   .name('selfer')
   .description('A self-improving CLI AI agent')
-  .version('2.2.0');
+  .version('3.0.0');
 
 program
   .command('setup')

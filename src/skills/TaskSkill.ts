@@ -17,13 +17,27 @@ export class TaskSkill extends BaseSkill {
     status: z.enum(['active', 'completed', 'blocked']).default('active')
   });
 
-  async execute(input: z.infer<typeof this.schema>): Promise<SkillResult> {
+  async execute(input: z.infer<typeof this.schema>, core?: any): Promise<SkillResult> {
     try {
-      // Phase 2: Mock task management
+      const taskManager = core?.getTaskManager();
+      if (!taskManager) {
+        return { content: 'Task System Error: TaskManager not initialized.', isError: true };
+      }
+
+      if (input.id) {
+        const updated = await taskManager.updateTask(input.id, { 
+            status: input.status,
+            description: input.description 
+        });
+        if (!updated) return { content: `Task with ID ${input.id} not found.`, isError: true };
+        return { content: `Updated task: ${updated.title} to ${updated.status}.`, isError: false };
+      }
+
+      const task = await taskManager.createTask(input.title, input.description);
       return { 
-        content: `Successfully managed task: "${input.title}" (Status: ${input.status}).`,
+        content: `Successfully created persistent task: "${task.title}" (ID: ${task.id}).`,
         isError: false,
-        metadata: { task_id: input.id || `task_${crypto.randomUUID()}` }
+        metadata: { task_id: task.id }
       };
     } catch (error: any) {
       return { content: `Task System Error: ${error.message}`, isError: true };

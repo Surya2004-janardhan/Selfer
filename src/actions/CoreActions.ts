@@ -46,7 +46,7 @@ export function registerCoreActions(registry: CommandRegistry, core: ThinkingCor
       const actions = registry.getActions();
       const skills = core.getSkillList();
       
-      let help = '🚀 Selfer v2.1.0 - Interactive Help\n\n';
+      let help = '🚀 Selfer v3.0.0 - Deep Architectural Parity\n\n';
       help += '--- Manual Slash Commands ---\n';
       help += actions.map(a => `/${a.name.padEnd(8)} - ${a.description}`).join('\n');
       
@@ -63,12 +63,40 @@ export function registerCoreActions(registry: CommandRegistry, core: ThinkingCor
     description: 'Show active provider and model configuration.',
     execute: async () => {
       const skills = core.getSkillList();
-      return `🛠️ Selfer Environment Config:\n` +
-             `--------------------------\n` +
+      const stats = core.getCostStats();
+      return `🛠️ Selfer Environment Config [v3.0.0]\n` +
+             `-----------------------------------\n` +
              `Provider : ${core.getProviderName()}\n` +
              `Model    : ${core.getModelName()}\n` +
              `Skills   : ${skills.length} active\n` +
+             `Usage    : ${stats.totalCost} USD estimated\n` +
              `CWD      : ${process.cwd()}`;
+    }
+  });
+
+  // /tasks - Persistent Goal list
+  registry.register({
+    name: 'tasks',
+    description: 'List all persistent agentic goals.',
+    execute: async () => {
+      const tasks = core.getTaskManager().getTasks();
+      if (tasks.length === 0) return 'No persistent tasks found.';
+      return '📋 Persistent Selfer Goals:\n' + 
+             tasks.map(t => `${t.id.padEnd(12)} [${t.status.toUpperCase()}] ${t.title}`).join('\n');
+    }
+  });
+
+  // /costs - Usage diagnostics
+  registry.register({
+    name: 'costs',
+    description: 'Show detailed token and USD cost stats.',
+    execute: async () => {
+      const stats = core.getCostStats();
+      return `💰 Selfer Usage Metrics:\n` +
+             `-----------------------\n` +
+             `Input Tokens  : ${stats.totalInput}\n` +
+             `Output Tokens : ${stats.totalOutput}\n` +
+             `Estimated USD : $${stats.totalCost}`;
     }
   });
 }

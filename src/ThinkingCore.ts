@@ -102,10 +102,19 @@ export class ThinkingCore {
     this.skills.set(skill.name, skill);
   }
 
+  private abortController: AbortController | null = null;
+
   async initialize() {
     await this.memory.initialize();
     await this.taskManager.initialize();
     await this.costTracker.initialize();
+  }
+
+  public abort() {
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
   }
 
   public getTaskManager() { return this.taskManager; }
@@ -132,7 +141,7 @@ export class ThinkingCore {
   public async executeSkillDirect(skillName: string, input: any) {
     const skill = this.skills.get(skillName);
     if (!skill) return { content: `Unknown skill: ${skillName}`, isError: true };
-    return await skill.execute(input);
+    return await skill.execute(input, this);
   }
 
   public getSkillList(): { name: string, description: string }[] {
@@ -163,88 +172,104 @@ export class ThinkingCore {
 
     let turns = 0;
     const maxTurns = this.config.maxTurns ?? 10;
+    this.abortController = new AbortController();
 
-    while (turns < maxTurns) {
-      turns++;
-
-      yield {
-        type: 'thinking',
-        content: `Thinking... (Turn ${turns}/${maxTurns})`
-      };
-
-      const response = await this.provider.generate(
-        this.history as any,
-        this.getToolDefinitions()
-      );
-
-      // Track usage
-      await this.costTracker.record(
-        this.provider.name,
-        this.config.model,
-        (response as any).inputTokens || 0,
-        (response as any).outputTokens || 0
-      );
-
-      if (response.content) {
-        const assistantMessage: SelferMessage = {
-          role: 'assistant',
-          content: response.content,
-          timestamp: new Date().toISOString()
-        };
-        this.history.push(assistantMessage);
-        await this.historyStore.appendEntry(assistantMessage);
+    try {
+      while (turns < maxTurns) {
+        turns++;
 
         yield {
-          type: 'assistant',
-          content: response.content,
-          tokens: response.tokensUsed
+          type: 'thinking',
+          content: turns === 1 ? 'Thinking...' : `Thinking (Turn ${turns}/${maxTurns})...`
         };
-      }
 
-      // Handle tool calls
-      if (response.toolCalls && response.toolCalls.length > 0) {
-        for (const call of response.toolCalls) {
-          const skill = this.skills.get(call.name);
-          if (skill) {
-            // Security check
-            const decision = await this.permissionManager.checkPermission(call.name, call.input);
-            if (decision === 'deny') {
-              this.history.push({
-                role: 'tool',
-                content: 'Error: Execution denied by user permission policy.',
-                timestamp: new Date().toISOString(),
-                tool_use_id: call.id
-              } as any);
-              continue;
-            }
+        const generator = this.provider.generate(
+          this.history as any,
+          this.getToolDefinitions(),
+          this.abortController.signal
+        );
 
-            yield {
-              type: 'progress',
-              content: `Executing skill: ${call.name}...`
-            };
+        let accumulatedContent = '';
+        let toolCalls: any[] | undefined;
 
-            const result = await skill.execute(call.input);
-            
-            this.history.push({
-              role: 'tool',
-              content: result.content,
-              timestamp: new Date().toISOString(),
-              tool_use_id: call.id
-            } as any);
-
-            yield {
-              type: 'result',
-              content: `Skill ${call.name} finished.`,
-              isError: result.isError
-            };
+        for await (const chunk of generator) {
+          if (chunk.type === 'content' && chunk.content) {
+            accumulatedContent += chunk.content;
+            yield { type: 'chunk', content: chunk.content };
+          } else if (chunk.type === 'tool_use') {
+            yield { type: 'progress', content: `Preparing skill: ${chunk.name}...` };
           }
         }
-        // Continue the loop to let the model react to tool results
-        continue;
-      }
 
-      // No more tool calls, exit loop
-      break;
+        // The generator's return value is the final result
+        const response = await (generator as any).next();
+        const finalResponse = response.value;
+
+        // Track usage
+        await this.costTracker.record(
+          this.provider.name,
+          this.config.model,
+          finalResponse?.inputTokens || 0,
+          finalResponse?.outputTokens || 0
+        );
+
+        if (finalResponse?.content) {
+          const assistantMessage: SelferMessage = {
+            role: 'assistant',
+            content: finalResponse.content,
+            timestamp: new Date().toISOString()
+          };
+          this.history.push(assistantMessage);
+          await this.historyStore.appendEntry(assistantMessage);
+        }
+
+        // Handle tool calls
+        if (finalResponse?.toolCalls && finalResponse.toolCalls.length > 0) {
+          for (const call of finalResponse.toolCalls) {
+            const skill = this.skills.get(call.name);
+            if (skill) {
+              const decision = await this.permissionManager.checkPermission(call.name, call.input);
+              if (decision === 'deny') {
+                const denyMsg: SelferMessage = {
+                  role: 'tool',
+                  content: 'Error: Execution denied by user permission policy.',
+                  timestamp: new Date().toISOString(),
+                  tool_use_id: call.id
+                } as any;
+                this.history.push(denyMsg);
+                continue;
+              }
+
+              yield { type: 'progress', content: `Executing skill: ${call.name}...` };
+              const result = await skill.execute(call.input, this);
+              
+              const toolResultMsg: SelferMessage = {
+                role: 'tool',
+                content: result.content,
+                timestamp: new Date().toISOString(),
+                tool_use_id: call.id
+              } as any;
+              this.history.push(toolResultMsg);
+
+              yield {
+                type: 'result',
+                content: `Skill ${call.name} finished.`,
+                isError: result.isError
+              };
+            }
+          }
+          continue;
+        }
+        break;
+      }
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        yield { type: 'assistant', content: ' [Generation Aborted]' };
+      } else {
+        throw error;
+      }
+    } finally {
+      this.abortController = null;
     }
   }
 }

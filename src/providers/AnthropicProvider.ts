@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { BaseProvider, ProviderResponse, ToolDefinition } from './BaseProvider.js';
+import { BaseProvider, ProviderResponse, ToolDefinition, ProviderChunk } from './BaseProvider.js';
 
 export class AnthropicProvider extends BaseProvider {
   name = 'anthropic';
@@ -12,34 +12,68 @@ export class AnthropicProvider extends BaseProvider {
     this.model = model;
   }
 
-  async generate(
+  async *generate(
     messages: Array<any>,
-    tools?: ToolDefinition[]
-  ): Promise<ProviderResponse> {
+    tools?: ToolDefinition[],
+    signal?: AbortSignal
+  ): AsyncGenerator<ProviderChunk, ProviderResponse, unknown> {
     const formattedMessages = messages.map(msg => ({
-      role: (msg.role === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
-      content: msg.content
+      role: (msg.role === 'assistant' ? 'assistant' : 'user') as 'assistant' | 'user',
+      content: msg.content,
+      tool_use_id: (msg as any).tool_use_id
     }));
 
-    const response = await this.client.messages.create({
+    const stream = await this.client.messages.stream({
       model: this.model,
       max_tokens: 4096,
-      messages: formattedMessages,
+      messages: formattedMessages as any,
       tools: tools as any
-    });
+    }, { signal });
 
-    const contentBlock = response.content.find(block => block.type === 'text');
-    const toolUseBlocks = response.content.filter(block => block.type === 'tool_use');
+    let accumulatedContent = '';
+    const toolCalls: any[] = [];
+    let finalUsage: any = {};
+
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        accumulatedContent += event.delta.text;
+        yield { type: 'content', content: event.delta.text };
+      }
+
+      if (event.type === 'content_block_start' && event.content_block.type === 'tool_use') {
+        const toolUse = event.content_block;
+        const call = {
+          id: toolUse.id,
+          name: toolUse.name,
+          input: {} // Will be populated by delta if needed, but SDK usually handles it in message_stop
+        };
+        toolCalls.push(call);
+        yield { type: 'tool_use', ...call };
+      }
+
+      if (event.type === 'message_stop') {
+         // Final cleanup if needed
+      }
+    }
+
+    const finalMessage = await stream.finalMessage();
+    finalUsage = finalMessage.usage;
+    
+    // Extract full tool inputs from the final message
+    const toolUseBlocks = finalMessage.content.filter(b => b.type === 'tool_use') as any[];
+    const completeToolCalls = toolUseBlocks.map(b => ({
+        id: b.id,
+        name: b.name,
+        input: b.input
+    }));
 
     return {
-      content: contentBlock?.type === 'text' ? contentBlock.text : undefined,
-      toolCalls: toolUseBlocks.map((block: any) => ({
-        id: block.id,
-        name: block.name,
-        input: block.input
-      })),
-      tokensUsed: response.usage.input_tokens + response.usage.output_tokens,
-      stopReason: response.stop_reason ?? undefined
+      content: accumulatedContent,
+      toolCalls: completeToolCalls.length > 0 ? completeToolCalls : undefined,
+      tokensUsed: finalUsage.input_tokens + finalUsage.output_tokens,
+      inputTokens: finalUsage.input_tokens,
+      outputTokens: finalUsage.output_tokens,
+      stopReason: finalMessage.stop_reason ?? undefined
     };
   }
 }

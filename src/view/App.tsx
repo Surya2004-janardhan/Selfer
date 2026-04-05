@@ -5,6 +5,7 @@ import { SelferMascot } from '../mascot/Mascot.js';
 import { ThinkingCore } from '../ThinkingCore.js';
 import { CommandRegistry } from '../actions/CommandRegistry.js';
 import { Theme } from './Theme.js';
+import { useInput } from 'ink';
 
 /**
  * App.tsx
@@ -42,21 +43,45 @@ export const App: React.FC<AppProps> = ({ core, registry, modelName, providerNam
     setMessages((prev) => [...prev, { role: 'user', content: currentQuery }]);
     setState('thinking');
     
+    // Create an empty assistant message to stream into
+    setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
+    
     // Core submission loop
     try {
       const generator = core.submitMessage(currentQuery);
       for await (const chunk of generator) {
-        if (chunk.type === 'assistant') {
-          setMessages((prev) => [...prev, { role: 'assistant', content: chunk.content }]);
-          if (chunk.tokens) setTotalTokens(t => t + chunk.tokens);
-          setState('result');
+        if (chunk.type === 'chunk') {
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (last && last.role === 'assistant') {
+              const updated = [...prev];
+              updated[updated.length - 1] = { ...last, content: last.content + chunk.content };
+              return updated;
+            }
+            return prev;
+          });
+        } else if (chunk.type === 'thinking') {
+          // You could update thinking state text here if desired
         }
       }
+      setState('result');
     } catch (error: any) {
-      setMessages((prev) => [...prev, { role: 'error', content: error.message }]);
+      if (error.name === 'AbortError') {
+          // Already handled in ThinkingCore yielding "Aborted"
+      } else {
+          setMessages((prev) => [...prev, { role: 'error', content: error.message }]);
+      }
       setState('idle');
     }
   };
+
+  // Phase 5: Interruptibility (Esc to Abort)
+  useInput((input, key) => {
+    if (key.escape && state === 'thinking') {
+      core.abort();
+      setState('result');
+    }
+  });
 
   const getMessageColor = (role: string) => {
     if (role === 'user') return Theme.accent;
@@ -77,7 +102,7 @@ export const App: React.FC<AppProps> = ({ core, registry, modelName, providerNam
         <Box>
             <SelferMascot state={state === 'idle' && messages.some(m => m.role === 'error') ? 'idle' : state} />
             <Box marginLeft={2}>
-                <Text color={Theme.accent} bold>SELFER v2.2.0</Text>
+                <Text color={Theme.accent} bold>SELFER v3.1.0</Text>
                 <Text color={Theme.muted}> │ </Text>
                 <Text color={Theme.secondary}>{providerName.toUpperCase()}</Text>
                 <Text color={Theme.muted}> › </Text>
@@ -106,7 +131,11 @@ export const App: React.FC<AppProps> = ({ core, registry, modelName, providerNam
                 <Text color={Theme.muted}>—</Text>
             </Box>
             <Box marginLeft={2} paddingY={0}>
-                <Text color={msg.role === 'error' ? Theme.error : Theme.foreground}>{msg.content}</Text>
+                {msg.role === 'assistant' && msg.content === '' && state === 'thinking' ? (
+                    <Text color={Theme.muted} italic>Streaming...</Text>
+                ) : (
+                    <Text color={msg.role === 'error' ? Theme.error : Theme.foreground}>{msg.content}</Text>
+                )}
             </Box>
           </Box>
         ))}

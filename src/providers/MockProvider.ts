@@ -54,8 +54,8 @@ export class MockProvider extends BaseProvider {
           },
           {
             id: 'call_2',
-            name: 'DiskSkill',
-            input: { action: 'write', filePath: 'TEST_SUCCESS.md', content: 'Selfer is Alive' }
+            name: 'FileWrite',
+            input: { absolute_path: 'TEST_SUCCESS.md', content: 'Selfer is Alive' }
           }
       ];
       

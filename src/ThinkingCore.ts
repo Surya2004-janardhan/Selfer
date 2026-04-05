@@ -1,18 +1,27 @@
-import { DiskSkill } from './skills/DiskSkill.js';
-import { ConsoleSkill } from './skills/ConsoleSkill.js';
-import { RadarSkill } from './skills/RadarSkill.js';
+import { FileReadSkill } from './skills/FileReadSkill.js';
+import { FileWriteSkill } from './skills/FileWriteSkill.js';
+import { FileEditSkill } from './skills/FileEditSkill.js';
+import { BashSkill } from './skills/BashSkill.js';
+import { GrepSkill } from './skills/GrepSkill.js';
 import { GlobSkill } from './skills/GlobSkill.js';
 import { PulseSkill } from './skills/PulseSkill.js';
-import { InquirySkill } from './skills/InquirySkill.js';
+import { AskUserQuestionSkill } from './skills/AskUserQuestionSkill.js';
 import { AwaitSkill } from './skills/AwaitSkill.js';
-import { WebScoutSkill } from './skills/WebScoutSkill.js';
+import { WebFetchSkill } from './skills/WebFetchSkill.js';
 import { ConnectMcpSkill } from './skills/ConnectMcpSkill.js';
 import { CodeAwarenessSkill } from './skills/CodeAwarenessSkill.js';
-import { TemporalSyncSkill } from './skills/TemporalSyncSkill.js';
+import { ScheduleCronSkill } from './skills/ScheduleCronSkill.js';
 import { AgenticSwarmSkill } from './skills/AgenticSwarmSkill.js';
 import { TaskSkill } from './skills/TaskSkill.js';
-import { RelaySkill } from './skills/RelaySkill.js';
-import { InsightSkill } from './skills/InsightSkill.js';
+import { SendMessageSkill } from './skills/SendMessageSkill.js';
+import { SyntheticOutputSkill } from './skills/SyntheticOutputSkill.js';
+import { REPLSkill } from './skills/REPLSkill.js';
+import { LSPSkill } from './skills/LSPSkill.js';
+import { NotebookEditSkill } from './skills/NotebookEditSkill.js';
+import { ConfigSkill } from './skills/ConfigSkill.js';
+import { PlanModeSkills } from './skills/PlanModeSkills.js';
+import { WorktreeSkills } from './skills/WorktreeSkills.js';
+import { TodoWriteSkill } from './skills/TodoWriteSkill.js';
 import { MemoryStore } from './memories/MemoryStore.js';
 import { TokenEstimator } from './utils/TokenEstimator.js';
 import { BaseProvider, ToolDefinition } from './providers/BaseProvider.js';
@@ -80,22 +89,31 @@ export class ThinkingCore {
       this.provider = new OllamaProvider(selferConfig?.ollamaEndpoint, model);
     }
 
-    // Register skills (Phase 2 Expanded Set)
-    this.registerSkill(new DiskSkill());
-    this.registerSkill(new ConsoleSkill());
-    this.registerSkill(new RadarSkill());
+    // Register skills (Phase 6 Native Sequence)
+    this.registerSkill(new FileReadSkill());
+    this.registerSkill(new FileWriteSkill());
+    this.registerSkill(new FileEditSkill());
+    this.registerSkill(new BashSkill());
+    this.registerSkill(new GrepSkill());
     this.registerSkill(new GlobSkill());
     this.registerSkill(new PulseSkill());
-    this.registerSkill(new InquirySkill());
+    this.registerSkill(new AskUserQuestionSkill());
     this.registerSkill(new AwaitSkill());
-    this.registerSkill(new WebScoutSkill());
+    this.registerSkill(new WebFetchSkill());
     this.registerSkill(new ConnectMcpSkill());
     this.registerSkill(new CodeAwarenessSkill());
-    this.registerSkill(new TemporalSyncSkill());
+    this.registerSkill(new ScheduleCronSkill());
     this.registerSkill(new AgenticSwarmSkill());
     this.registerSkill(new TaskSkill());
-    this.registerSkill(new RelaySkill());
-    this.registerSkill(new InsightSkill());
+    this.registerSkill(new SendMessageSkill());
+    this.registerSkill(new SyntheticOutputSkill());
+    this.registerSkill(new REPLSkill());
+    this.registerSkill(new LSPSkill());
+    this.registerSkill(new NotebookEditSkill());
+    this.registerSkill(new ConfigSkill());
+    this.registerSkill(new PlanModeSkills());
+    this.registerSkill(new WorktreeSkills());
+    this.registerSkill(new TodoWriteSkill());
   }
 
   private registerSkill(skill: any) {

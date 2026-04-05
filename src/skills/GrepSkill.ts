@@ -3,8 +3,8 @@ import path from 'path';
 import { z } from 'zod';
 import { BaseSkill, SkillResult } from './BaseSkill.js';
 
-export class RadarSkill extends BaseSkill {
-  name = 'RadarSkill';
+export class GrepSkill extends BaseSkill {
+  name = 'Grep';
   description = 'Skill for performing content search and pattern matching in the workspace.';
 
   schema = z.object({

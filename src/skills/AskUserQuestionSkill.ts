@@ -6,8 +6,8 @@ import { BaseSkill, SkillResult } from './BaseSkill.js';
  * Allows the AI agent to ask the user a specific question.
  * (Ported and renamed from AskUserQuestionTool)
  */
-export class InquirySkill extends BaseSkill {
-  name = 'InquirySkill';
+export class AskUserQuestionSkill extends BaseSkill {
+  name = 'AskUserQuestion';
   description = 'Skill for asking the user a clarifying question before proceeding.';
 
   schema = z.object({

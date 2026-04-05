@@ -6,8 +6,8 @@ import { BaseSkill, SkillResult } from './BaseSkill.js';
  * Logic for scheduling recurring or delayed tasks.
  * (Ported and renamed from ScheduleCronTool)
  */
-export class TemporalSyncSkill extends BaseSkill {
-  name = 'TemporalSyncSkill';
+export class ScheduleCronSkill extends BaseSkill {
+  name = 'ScheduleCron';
   description = 'Skill for scheduling future or recurring Selfer tasks/commands.';
 
   schema = z.object({

@@ -33,7 +33,7 @@ export function registerCoreActions(registry: CommandRegistry, core: ThinkingCor
     description: 'Quickly read workspace files.',
     execute: async (args) => {
       if (!args[0]) return 'Usage: /disk <file_path>';
-      const result = await core.executeSkillDirect('DiskSkill', { action: 'read', filePath: args[0] });
+      const result = await core.executeSkillDirect('FileRead', { absolute_path: args[0] });
       return result.content;
     }
   });

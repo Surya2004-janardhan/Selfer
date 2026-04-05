@@ -6,8 +6,8 @@ import { BaseSkill, SkillResult } from './BaseSkill.js';
  * Logic for creating and reading high-level project summaries and briefs.
  * (Ported and renamed from BriefTool)
  */
-export class InsightSkill extends BaseSkill {
-  name = 'InsightSkill';
+export class SyntheticOutputSkill extends BaseSkill {
+  name = 'SyntheticOutput';
   description = 'Skill for generating or retrieving persistent project insights and briefs.';
 
   schema = z.object({

@@ -2,8 +2,8 @@ import { z } from 'zod';
 import axios from 'axios';
 import { BaseSkill, SkillResult } from './BaseSkill.js';
 
-export class WebScoutSkill extends BaseSkill {
-  name = 'WebScoutSkill';
+export class WebFetchSkill extends BaseSkill {
+  name = 'WebFetch';
   description = 'Skill for performing web searches and fetching page content.';
 
   schema = z.object({

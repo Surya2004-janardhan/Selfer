@@ -3,7 +3,7 @@ import { BaseSkill, SkillResult } from './BaseSkill.js';
 import fg from 'fast-glob';
 
 export class GlobSkill extends BaseSkill {
-  name = 'GlobSkill';
+  name = 'Glob';
   description = 'Skill for finding files in the workspace using glob patterns (e.g. "**/*.ts").';
 
   schema = z.object({

@@ -6,8 +6,8 @@ import { BaseSkill, SkillResult } from './BaseSkill.js';
  * Logic for sending messages across Selfer instances or sub-agents.
  * (Ported and renamed from SendMessageTool)
  */
-export class RelaySkill extends BaseSkill {
-  name = 'RelaySkill';
+export class SendMessageSkill extends BaseSkill {
+  name = 'SendMessage';
   description = 'Skill for relaying messages and data streams across Selfer swarms.';
 
   schema = z.object({

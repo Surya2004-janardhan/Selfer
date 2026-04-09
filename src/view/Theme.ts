@@ -7,8 +7,8 @@ export const Theme = {
   background: '#0D1117', // Darker background
   foreground: '#C9D1D9',
   accent: '#58A6FF', // GitHub Dark Blue
-  secondary: '#1F6FEB', // Deeper Blue
-  success: '#3FB950', // Bash Light Green
+  secondary: '#115ed1ff', // Deeper Blue
+  success: '#48d55bff', // Bash Light Green
   warning: '#D29922',
   error: '#F85149',
   muted: '#484F58',

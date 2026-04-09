@@ -59,7 +59,7 @@ async function runSetup(): Promise<SelferConfig> {
       message: 'Select or enter the model name:',
       choices: modelChoices.length > 0 ? modelChoices : undefined,
       default: () => {
-        if (provider === 'ollama') return 'llama3.2';
+        if (provider === 'ollama') return '';
         if (provider === 'anthropic') return 'claude-3-5-sonnet-20241022';
         if (provider === 'openai') return 'gpt-4o';
         return 'mock-agent';

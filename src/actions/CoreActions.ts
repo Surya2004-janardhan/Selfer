@@ -99,4 +99,40 @@ export function registerCoreActions(registry: CommandRegistry, core: ThinkingCor
              `Estimated USD : $${stats.totalCost}`;
     }
   });
+
+  // /clear - Clear conversation history
+  registry.register({
+    name: 'clear',
+    description: 'Clear the current conversation history.',
+    execute: async () => {
+      const history = (core as any).history;
+      const systemMessage = history.find((m: any) => m.role === 'system');
+      (core as any).history = systemMessage ? [systemMessage] : [];
+      return 'Transcript cleared. Started a new context window.';
+    }
+  });
+
+  // /compact - Compact conversation history
+  registry.register({
+    name: 'compact',
+    description: 'Manually compact conversation history to save tokens.',
+    execute: async () => {
+      const HistoryCompactor = (await import('../services/HistoryCompactor.js')).HistoryCompactor;
+      const history = (core as any).history;
+      const initialLength = history.length;
+      
+      try {
+        const compacted = await HistoryCompactor.compact(
+          history, 
+          (core as any).provider, 
+          (core as any).config.model
+        );
+        (core as any).history = compacted;
+        return `Successfully compacted history from ${initialLength} to ${compacted.length} messages.`;
+      } catch (err: any) {
+        return `Failed to compact history: ${err.message}`;
+      }
+    }
+  });
 }
+

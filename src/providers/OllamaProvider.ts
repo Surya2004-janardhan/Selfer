@@ -72,6 +72,28 @@ export class OllamaProvider extends BaseProvider {
           if (parsed.done) {
             totalPromptEval = parsed.prompt_eval_count || 0;
             totalEval = parsed.eval_count || 0;
+
+            // Fallback for local models that output tool JSON raw into content
+            if (toolCalls.length === 0 && accumulatedContent.includes('"name"')) {
+              try {
+                // Try to extract JSON from markdown wrappers if present
+                const match = accumulatedContent.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/) || accumulatedContent.match(/(\{[\s\S]*\})/);
+                if (match) {
+                  const fakeTool = JSON.parse(match[1]);
+                  if (fakeTool.name && (fakeTool.arguments || fakeTool.input)) {
+                    const call = {
+                      id: `call_${Math.random().toString(36).substring(7)}`,
+                      name: fakeTool.name,
+                      input: fakeTool.arguments || fakeTool.input
+                    };
+                    toolCalls.push(call);
+                    // Do NOT yield tool_use here because done is true, it will be captured in finalResponse
+                  }
+                }
+              } catch (e) {
+                // Ignore parsing errors, it was just text
+              }
+            }
           }
         }
       }

@@ -46,11 +46,13 @@ async function runSetup(): Promise<SelferConfig> {
   let modelChoices: string[] = [];
   
   if (provider === 'ollama') {
-    modelChoices = await getOllamaModels();
-    if (modelChoices.length > 0) {
+    const fetched = await getOllamaModels();
+    if (fetched.length > 0) {
+      modelChoices = fetched;
       console.log(`✅ Found ${modelChoices.length} local models.\n`);
     } else {
-      console.log('⚠️  No local models found. You will need to enter one manually.\n');
+      console.log('⚠️  Could not fetch local models from Ollama, using common defaults.\n');
+      modelChoices = ['llama3:8b', 'phi3:latest', 'mistral:latest', 'gemma:7b'];
     }
   } else if (provider === 'anthropic') {
     modelChoices = [

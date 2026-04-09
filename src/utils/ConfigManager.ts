@@ -3,10 +3,11 @@ import path from 'path';
 import os from 'os';
 
 export interface SelferConfig {
-  provider: 'ollama' | 'anthropic' | 'openai' | 'mock';
+  provider: 'ollama' | 'anthropic' | 'openai' | 'gemini' | 'mock';
   model: string;
   anthropicKey?: string;
   openaiKey?: string;
+  geminiKey?: string;
   ollamaEndpoint?: string;
 }
 

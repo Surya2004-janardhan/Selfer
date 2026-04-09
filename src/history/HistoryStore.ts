@@ -3,62 +3,83 @@ import path from 'path';
 import os from 'os';
 import { SelferMessage } from '../ThinkingCore.js';
 
+export interface HistorySegment {
+  sessionId: string;
+  projectRoot: string;
+  messages: SelferMessage[];
+  timestamp: string;
+}
+
 /**
  * HistoryStore.ts
- * Persistent JSONL-based conversation history.
- * Mirrors Claude Code's history.ts architecture.
+ * Manages persistent conversation history with session segmentation.
+ * Parity with src-reference/history.ts.
  */
 export class HistoryStore {
-  private historyPath: string;
+  private historyDir: string;
+  private currentSessionId: string;
 
-  constructor() {
-    this.historyPath = path.join(os.homedir(), '.selfer', 'history.jsonl');
+  constructor(sessionId: string = `session_${Math.random().toString(36).substring(7)}`) {
+    this.historyDir = path.join(os.homedir(), '.selfer', 'history');
+    this.currentSessionId = sessionId;
   }
 
-  async appendEntry(message: SelferMessage, metadata?: any): Promise<void> {
+  async initialize(): Promise<void> {
     try {
-      const entry = {
-        ...message,
-        metadata: metadata || {},
-        timestamp: new Date().toISOString()
-      };
-
-      const entryString = JSON.stringify(entry) + '\n';
-      const dir = path.dirname(this.historyPath);
-      
-      // Ensure directory exists
-      await fs.mkdir(dir, { recursive: true });
-      
-      // Append entry (appendFile handles creation if missing)
-      await fs.appendFile(this.historyPath, entryString, { mode: 0o600 });
+      await fs.mkdir(this.historyDir, { recursive: true });
     } catch (error) {
-      console.error('Failed to append to history:', error);
+      // Best effort
     }
   }
 
-  async loadRecent(limit: number = 20): Promise<SelferMessage[]> {
+  async appendEntry(message: SelferMessage): Promise<void> {
+    const sessionFile = path.join(this.historyDir, `${this.currentSessionId}.jsonl`);
     try {
-      if (!(await this.fileExists(this.historyPath))) return [];
+      await fs.appendFile(sessionFile, JSON.stringify(message) + '\n', 'utf8');
       
-      const content = await fs.readFile(this.historyPath, 'utf8');
-      const lines = content.trim().split('\n');
-      
-      // Take the last 'limit' lines and parse
-      return lines
-        .slice(-limit)
-        .map(line => JSON.parse(line)) as SelferMessage[];
+      // Also append to a global index for cross-session analysis (Phase 6)
+      const globalFile = path.join(this.historyDir, 'global.jsonl');
+      const indexEntry = {
+        sessionId: this.currentSessionId,
+        project: process.cwd(),
+        ...message
+      };
+      await fs.appendFile(globalFile, JSON.stringify(indexEntry) + '\n', 'utf8');
     } catch (error) {
-      console.error('Failed to load history:', error);
+      // Best effort
+    }
+  }
+
+  async getSessionHistory(sessionId: string = this.currentSessionId): Promise<SelferMessage[]> {
+    const sessionFile = path.join(this.historyDir, `${sessionId}.jsonl`);
+    try {
+      const content = await fs.readFile(sessionFile, 'utf8');
+      return content
+        .trim()
+        .split('\n')
+        .filter(line => line.length > 0)
+        .map(line => JSON.parse(line));
+    } catch {
       return [];
     }
   }
 
-  private async fileExists(p: string): Promise<boolean> {
+  async getRecentSessions(limit: number = 5): Promise<{ sessionId: string, timestamp: number }[]> {
     try {
-      await fs.access(p);
-      return true;
+      const files = await fs.readdir(this.historyDir);
+      const sessions = files
+        .filter(f => f.endsWith('.jsonl') && f !== 'global.jsonl')
+        .map(f => ({
+          sessionId: f.replace('.jsonl', ''),
+          timestamp: 0 // In real impl, use stat.mtime
+        }));
+      return sessions.slice(-limit);
     } catch {
-      return false;
+      return [];
     }
+  }
+
+  getCurrentSessionId() {
+    return this.currentSessionId;
   }
 }

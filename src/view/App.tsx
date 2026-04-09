@@ -6,6 +6,7 @@ import { ThinkingCore } from '../ThinkingCore.js';
 import { CommandRegistry } from '../actions/CommandRegistry.js';
 import { Theme } from './Theme.js';
 import { useInput } from 'ink';
+import { ThinkingProcess, DiffBlock, CodeBlock, StatusPill, ToolActivity } from './TUIComponents.js';
 
 /**
  * App.tsx
@@ -24,6 +25,7 @@ export const App: React.FC<AppProps> = ({ core, registry, modelName, providerNam
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState<any[]>([]);
   const [state, setState] = useState<'idle' | 'thinking' | 'result'>('idle');
+  const [thinkingContent, setThinkingContent] = useState('');
   const [totalTokens, setTotalTokens] = useState(0);
 
   const handleSubmit = async () => {
@@ -42,6 +44,7 @@ export const App: React.FC<AppProps> = ({ core, registry, modelName, providerNam
 
     setMessages((prev) => [...prev, { role: 'user', content: currentQuery }]);
     setState('thinking');
+    setThinkingContent('');
     
     // Create an empty assistant message to stream into
     setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
@@ -61,7 +64,7 @@ export const App: React.FC<AppProps> = ({ core, registry, modelName, providerNam
             return prev;
           });
         } else if (chunk.type === 'thinking') {
-          // You could update thinking state text here if desired
+          setThinkingContent((prev) => prev + chunk.content);
         }
       }
       setState('result');
@@ -134,11 +137,13 @@ export const App: React.FC<AppProps> = ({ core, registry, modelName, providerNam
                 {msg.role === 'assistant' && msg.content === '' && state === 'thinking' ? (
                     <Text color={Theme.muted} italic>Streaming...</Text>
                 ) : (
+                    msg.content.includes('--- diff') ? <DiffBlock diff={msg.content} /> : 
                     <Text color={msg.role === 'error' ? Theme.error : Theme.foreground}>{msg.content}</Text>
                 )}
             </Box>
           </Box>
         ))}
+        {thinkingContent && <ThinkingProcess content={thinkingContent} />}
       </Box>
 
       {/* Input Area */}

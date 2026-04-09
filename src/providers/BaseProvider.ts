@@ -11,7 +11,7 @@ export interface ToolDefinition {
 }
 
 export interface ProviderChunk {
-  type: 'content' | 'tool_use' | 'done';
+  type: 'content' | 'tool_use' | 'thinking' | 'done';
   id?: string;
   name?: string;
   content?: string;

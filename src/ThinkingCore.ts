@@ -28,18 +28,32 @@ import { BaseProvider, ToolDefinition } from './providers/BaseProvider.js';
 import { OllamaProvider } from './providers/OllamaProvider.js';
 import { AnthropicProvider } from './providers/AnthropicProvider.js';
 import { OpenAIProvider } from './providers/OpenAIProvider.js';
+import { GeminiProvider } from './providers/GeminiProvider.js';
 import { MockProvider } from './providers/MockProvider.js';
 import { PermissionManager } from './PermissionManager.js';
 import { SelferConfig } from './utils/ConfigManager.js';
 import { HistoryStore } from './history/HistoryStore.js';
 import { TaskManager } from './tasks/TaskManager.js';
 import { CostTracker } from './utils/CostTracker.js';
+import { ProjectContextManager } from './utils/ProjectContextManager.js';
+import { HistoryCompactor } from './services/HistoryCompactor.js';
 
 export interface ThinkingCoreConfig {
   model: string;
   cwd: string;
   maxTurns?: number;
   apiKey?: string;
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  description: string;
+  status: 'active' | 'completed' | 'blocked';
+  subtasks?: { title: string; completed: boolean }[];
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
 }
 
 export interface SelferMessage {
@@ -64,6 +78,8 @@ export class ThinkingCore {
   private historyStore: HistoryStore;
   private taskManager: TaskManager;
   private costTracker: CostTracker;
+  private contextManager: ProjectContextManager;
+  private contextInjected: boolean = false;
 
   constructor(config: ThinkingCoreConfig, selferConfig?: SelferConfig) {
     this.config = config;
@@ -74,6 +90,7 @@ export class ThinkingCore {
     this.historyStore = new HistoryStore();
     this.taskManager = new TaskManager();
     this.costTracker = new CostTracker();
+    this.contextManager = new ProjectContextManager(config.cwd);
 
     // Select Provider based on persistent config or manual override
     const providerType = selferConfig?.provider || (config.model.includes('claude') ? 'anthropic' : (config.model.includes('gpt') ? 'openai' : 'ollama'));
@@ -85,6 +102,8 @@ export class ThinkingCore {
       this.provider = new AnthropicProvider(selferConfig?.anthropicKey || config.apiKey!, model);
     } else if (providerType === 'openai' && (selferConfig?.openaiKey || config.apiKey)) {
       this.provider = new OpenAIProvider(selferConfig?.openaiKey || config.apiKey!, model);
+    } else if (providerType === 'gemini' && (selferConfig?.geminiKey || config.apiKey)) {
+      this.provider = new GeminiProvider(selferConfig?.geminiKey || config.apiKey!, model);
     } else {
       this.provider = new OllamaProvider(selferConfig?.ollamaEndpoint, model);
     }
@@ -177,6 +196,21 @@ export class ThinkingCore {
     return this.config.model;
   }
 
+  async updateTask(id: string, updates: Partial<Task>): Promise<Task | null> {
+    const task = this.tasks.get(id);
+    if (!task) return null;
+    const isNowCompleted = updates.status === 'completed' && task.status !== 'completed';
+    const updated = { 
+      ...task, 
+      ...updates, 
+      updatedAt: new Date().toISOString(),
+      ...(isNowCompleted ? { completedAt: new Date().toISOString() } : {})
+    };
+    this.tasks.set(id, updated);
+    await this.save();
+    return updated;
+  }
+
   async *submitMessage(prompt: string): AsyncGenerator<any, void, unknown> {
     const userMessage: SelferMessage = {
       role: 'user',
@@ -186,113 +220,114 @@ export class ThinkingCore {
     this.history.push(userMessage);
     await this.historyStore.appendEntry(userMessage);
 
+    // Inject System Context on first turn
+    if (!this.contextInjected) {
+      const contextPrompt = await this.contextManager.getContextPrompt();
+      const systemContextMessage: SelferMessage = {
+        role: 'system',
+        content: contextPrompt,
+        timestamp: new Date().toISOString()
+      };
+      this.history.unshift(systemContextMessage);
+      this.contextInjected = true;
+    }
+
+    // Compact history if needed before generation
+    const originalHistory = [...this.history];
+    this.history = await HistoryCompactor.compact(this.history, this.provider, this.config.model);
+    if (this.history.length < originalHistory.length) {
+      yield { type: 'thinking', content: 'Compacting conversation history for better context scaling...' };
+    }
+
     this.truncateHistory();
 
     let turns = 0;
-    const maxTurns = this.config.maxTurns ?? 10;
+    const maxTurns = 10;
     this.abortController = new AbortController();
 
     try {
       while (turns < maxTurns) {
         turns++;
-
-        yield {
-          type: 'thinking',
-          content: turns === 1 ? 'Thinking...' : `Thinking (Turn ${turns}/${maxTurns})...`
-        };
-
+        
+        let accumulatedContent = '';
+        let hasToolCallsInTurn = false;
+        
+        const start = Date.now();
         const generator = this.provider.generate(
-          this.history as any,
-          this.getToolDefinitions(),
+          this.history as any, 
+          this.getToolDefinitions(), 
           this.abortController.signal
         );
 
-        let accumulatedContent = '';
-        let finalResponse: any = {};
-
-        // Drive the generator manually so we capture the return value (done:true)
+        // Consume the generator
         while (true) {
           const { value, done } = await generator.next();
+          
           if (done) {
-            finalResponse = value ?? {};
-            break;
+            const finalResponse = value ?? {};
+            
+            // Record Usage
+            await this.costTracker.record(
+              this.provider.name,
+              this.config.model,
+              finalResponse.inputTokens || 0,
+              finalResponse.outputTokens || 0,
+              Date.now() - start
+            );
+
+            // Commit assistant message to history
+            const finalContent = finalResponse.content || accumulatedContent;
+            if (finalContent) {
+              const assistantMessage: SelferMessage = {
+                role: 'assistant',
+                content: finalContent,
+                timestamp: new Date().toISOString()
+              };
+              this.history.push(assistantMessage);
+              await this.historyStore.appendEntry(assistantMessage);
+            }
+
+            // Handle tool calls from final response (post-sampling)
+            if (finalResponse.toolCalls && finalResponse.toolCalls.length > 0) {
+              hasToolCallsInTurn = true;
+              for (const call of finalResponse.toolCalls) {
+                yield { type: 'tool_call', content: `Running ${call.name}...` };
+                try {
+                  const result = await this.executeSkillDirect(call.name, call.input);
+                  const toolResultMessage: SelferMessage = {
+                    role: 'tool',
+                    content: result.content,
+                    timestamp: new Date().toISOString(),
+                    tool_use_id: call.id
+                  };
+                  this.history.push(toolResultMessage);
+                  await this.historyStore.appendEntry(toolResultMessage);
+                  yield { type: 'tool_result', content: `Finished ${call.name}.` };
+                } catch (err: any) {
+                  yield { type: 'error', content: `Tool error: ${err.message}` };
+                }
+              }
+            }
+            break; // Exit generator consumption
           }
+
           const chunk = value;
-          if (chunk.type === 'content' && chunk.content) {
-            accumulatedContent += chunk.content;
+          if (chunk.type === 'content') {
+            accumulatedContent += chunk.content || '';
             yield { type: 'chunk', content: chunk.content };
           } else if (chunk.type === 'tool_use') {
-            yield { type: 'progress', content: `Preparing skill: ${chunk.name}...` };
+            // Some providers might stream tool use starts
+            yield { type: 'tool_call', content: `Preparing ${chunk.name}...` };
           }
         }
 
-        // Track usage
-        await this.costTracker.record(
-          this.provider.name,
-          this.config.model,
-          finalResponse?.inputTokens || 0,
-          finalResponse?.outputTokens || 0
-        );
-
-        // Merge streamed chunks into final content if provider didn't include it
-        const finalContent = finalResponse?.content || accumulatedContent;
-        if (finalContent) {
-          const assistantMessage: SelferMessage = {
-            role: 'assistant',
-            content: finalContent,
-            timestamp: new Date().toISOString()
-          };
-          this.history.push(assistantMessage);
-          await this.historyStore.appendEntry(assistantMessage);
-          // Only emit `assistant` event if content wasn't already streamed as chunks
-          if (!accumulatedContent) {
-            yield { type: 'assistant', content: finalContent };
-          }
-        }
-
-        // Handle tool calls
-        if (finalResponse?.toolCalls && finalResponse.toolCalls.length > 0) {
-          for (const call of finalResponse.toolCalls) {
-            const skill = this.skills.get(call.name);
-            if (skill) {
-              const decision = await this.permissionManager.checkPermission(call.name, call.input);
-              if (decision === 'deny') {
-                const denyMsg: SelferMessage = {
-                  role: 'tool',
-                  content: 'Error: Execution denied by user permission policy.',
-                  timestamp: new Date().toISOString(),
-                  tool_use_id: call.id
-                } as any;
-                this.history.push(denyMsg);
-                continue;
-              }
-
-              yield { type: 'progress', content: `Executing skill: ${call.name}...` };
-              const result = await skill.execute(call.input, this);
-
-              const toolResultMsg: SelferMessage = {
-                role: 'tool',
-                content: result.content,
-                timestamp: new Date().toISOString(),
-                tool_use_id: call.id
-              } as any;
-              this.history.push(toolResultMsg);
-
-              yield {
-                type: 'result',
-                content: `Skill ${call.name} finished.`,
-                isError: result.isError
-              };
-            }
-          }
-          continue;
-        }
-        break;
+        if (!hasToolCallsInTurn) break; 
       }
     } catch (error: any) {
       if (error.name === 'AbortError') {
-        yield { type: 'assistant', content: ' [Generation Aborted]' };
+        yield { type: 'chunk', content: '\n[Generation Aborted]' };
       } else {
+        yield { type: 'error', content: `Error: ${error.message}` };
         throw error;
       }
     } finally {

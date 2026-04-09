@@ -34,6 +34,7 @@ async function runSetup(): Promise<SelferConfig> {
       message: 'Select your AI Provider:',
       choices: [
         { name: 'Ollama (Local Models)', value: 'ollama' },
+        { name: 'Gemini (Google AI)', value: 'gemini' },
         { name: 'Anthropic (Claude Cloud)', value: 'anthropic' },
         { name: 'OpenAI (GPT Cloud)', value: 'openai' },
         { name: 'Mock (Developer Test)', value: 'mock' }
@@ -41,15 +42,39 @@ async function runSetup(): Promise<SelferConfig> {
     }
   ]);
 
-  console.log(`\n🔍 Checking ${provider} status...`);
+  console.log(`\n🔍 Fetching available models for ${provider}...`);
   let modelChoices: string[] = [];
+  
   if (provider === 'ollama') {
     modelChoices = await getOllamaModels();
     if (modelChoices.length > 0) {
       console.log(`✅ Found ${modelChoices.length} local models.\n`);
     } else {
-      console.log('⚠️  No local models found or Ollama is offline. You will need to enter the name manually.\n');
+      console.log('⚠️  No local models found. You will need to enter one manually.\n');
     }
+  } else if (provider === 'anthropic') {
+    modelChoices = [
+      'claude-3-5-sonnet-20241022',
+      'claude-3-5-haiku-20241022',
+      'claude-3-opus-20240229',
+      'claude-3-sonnet-20240229'
+    ];
+  } else if (provider === 'gemini') {
+    modelChoices = [
+      'gemini-1.5-pro',
+      'gemini-1.5-flash',
+      'gemini-1.5-flash-8b',
+      'gemini-2.0-flash-exp'
+    ];
+  } else if (provider === 'openai') {
+    modelChoices = [
+      'gpt-4o',
+      'gpt-4o-mini',
+      'gpt-4-turbo',
+      'gpt-3.5-turbo'
+    ];
+  } else if (provider === 'mock') {
+    modelChoices = ['mock-agent'];
   }
 
   const answers = await inquirer.prompt([
@@ -78,6 +103,12 @@ async function runSetup(): Promise<SelferConfig> {
       when: () => provider === 'openai'
     },
     {
+        type: 'password',
+        name: 'geminiKey',
+        message: 'Enter your Gemini API Key:',
+        when: () => provider === 'gemini'
+    },
+    {
         type: 'input',
         name: 'ollamaEndpoint',
         message: 'Enter Ollama API Endpoint:',
@@ -97,6 +128,7 @@ async function runSetup(): Promise<SelferConfig> {
     model: answers.model,
     anthropicKey: answers.anthropicKey,
     openaiKey: answers.openaiKey,
+    geminiKey: answers.geminiKey,
     ollamaEndpoint: answers.ollamaEndpoint
   };
 

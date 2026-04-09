@@ -17,11 +17,24 @@ export class AnthropicProvider extends BaseProvider {
     tools?: ToolDefinition[],
     signal?: AbortSignal
   ): AsyncGenerator<ProviderChunk, ProviderResponse, unknown> {
-    const formattedMessages = messages.map(msg => ({
-      role: (msg.role === 'assistant' ? 'assistant' : 'user') as 'assistant' | 'user',
-      content: msg.content,
-      tool_use_id: (msg as any).tool_use_id
-    }));
+    const formattedMessages = messages.map(msg => {
+      if (msg.role === 'tool') {
+        return {
+          role: 'user',
+          content: [
+            {
+              type: 'tool_result',
+              tool_use_id: (msg as any).tool_use_id,
+              content: msg.content
+            }
+          ]
+        };
+      }
+      return {
+        role: (msg.role === 'assistant' ? 'assistant' : 'user') as 'assistant' | 'user',
+        content: msg.content
+      };
+    });
 
     const stream = await this.client.messages.stream({
       model: this.model,

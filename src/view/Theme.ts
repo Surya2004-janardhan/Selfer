@@ -4,15 +4,15 @@
  */
 
 export const Theme = {
-  background: '#2E3440',
-  foreground: '#D8DEE9',
-  accent: '#88C0D0', // Frost Cyan
-  secondary: '#81A1C1', // Frost Blue
-  success: '#A3BE8C', // Aurora Green
-  warning: '#EBCB8B', // Aurora Yellow
-  error: '#BF616A', // Aurora Red
-  muted: '#4C566A', // Polar Night Gray
-  highlight: '#E5E9F0',
+  background: '#0D1117', // Darker background
+  foreground: '#C9D1D9',
+  accent: '#58A6FF', // GitHub Dark Blue
+  secondary: '#1F6FEB', // Deeper Blue
+  success: '#3FB950', // Bash Light Green
+  warning: '#D29922',
+  error: '#F85149',
+  muted: '#484F58',
+  highlight: '#E6EDF3',
 };
 
 export const getColor = (type: keyof typeof Theme) => Theme[type];

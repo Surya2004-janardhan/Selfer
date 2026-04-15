@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { BaseSkill, SkillResult } from './BaseSkill.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import fs from 'fs/promises';
+import path from 'path';
 const execPromise = promisify(exec);
 
 export class LSPSkill extends BaseSkill {
@@ -16,16 +18,56 @@ export class LSPSkill extends BaseSkill {
   });
 
   async execute(input: z.infer<typeof this.schema>): Promise<SkillResult> {
-    // In Phase 7, we simulate the LSP via fallback shell AST checks since raw TSServer connection requires a persistent worker wrapper
-    // For full 1:1, we would attach to `npx tsserver` via stdin/stdout, but this provides the required signature for the LLM
     try {
+      const absolutePath = path.resolve(process.cwd(), input.filePath);
+
       if (input.action === 'diagnostics') {
-        const { stdout, stderr } = await execPromise(`npx tsc --noEmit ${input.filePath}`);
-        return { content: stdout || stderr || 'No diagnostics issues found.', isError: false };
+        try {
+          const { stdout, stderr } = await execPromise(`npx tsc --noEmit ${absolutePath}`);
+          return { content: (stdout || stderr || 'No diagnostics issues found.').trim(), isError: false };
+        } catch (e: any) {
+          const output = `${e?.stdout || ''}\n${e?.stderr || ''}`.trim();
+          return { content: output || `LSP diagnostics error: ${e.message}`, isError: false };
+        }
       }
-      return { content: `LSP Tool mock response for ${input.action} on ${input.filePath} at line ${input.line}. Implementation mapped successfully.`, isError: false };
+
+      const content = await fs.readFile(absolutePath, 'utf8');
+      const lines = content.split('\n');
+      const line = typeof input.line === 'number' && input.line >= 0 ? input.line : 0;
+      const row = lines[line] || '';
+      const char = typeof input.character === 'number' && input.character >= 0 ? input.character : 0;
+
+      const tokenMatch = row.slice(char).match(/[A-Za-z_][A-Za-z0-9_]*/) || row.match(/[A-Za-z_][A-Za-z0-9_]*/);
+      const symbol = tokenMatch?.[0];
+      if (!symbol) {
+        return { content: `No symbol found at ${input.filePath}:${line + 1}:${char + 1}.`, isError: true };
+      }
+
+      if (input.action === 'hover') {
+        return {
+          content: `Hover: symbol ${symbol} at ${input.filePath}:${line + 1}\n${row.trim()}`,
+          isError: false
+        };
+      }
+
+      const escaped = symbol.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`\\b${escaped}\\b`, 'g');
+      const refs: string[] = [];
+      for (let i = 0; i < lines.length; i++) {
+        if (regex.test(lines[i])) {
+          refs.push(`${input.filePath}:${i + 1} ${lines[i].trim()}`);
+        }
+        if (refs.length >= 30) break;
+      }
+
+      return {
+        content: refs.length > 0
+          ? `References for ${symbol}:\n${refs.join('\n')}`
+          : `No references for ${symbol} found in ${input.filePath}.`,
+        isError: false
+      };
     } catch (e: any) {
-        return { content: `LSP Error: ${e.message}`, isError: false }; // Returning false so LLM handles text gracefully
+      return { content: `LSP Error: ${e.message}`, isError: true };
     }
   }
 }

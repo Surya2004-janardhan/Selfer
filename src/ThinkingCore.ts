@@ -175,21 +175,45 @@ export class ThinkingCore {
     }));
   }
 
+  private resolveSkillName(skillName: string): string {
+    const aliases: Record<string, string> = {
+      RadarSkill: 'Grep',
+      SearchSkill: 'Grep',
+      FileReadTool: 'FileRead',
+      FileWriteTool: 'FileWrite',
+      FileEditTool: 'FileEdit',
+      BashTool: 'Bash',
+      GlobTool: 'Glob',
+      GrepTool: 'Grep',
+      LSPTool: 'LSP',
+      AgentTool: 'AgenticSwarmSkill',
+      TaskCreateTool: 'TaskSkill',
+      TaskUpdateTool: 'TaskSkill',
+      BriefTool: 'SyntheticOutput',
+      ScheduleCronTool: 'ScheduleCron',
+      SendMessageTool: 'SendMessage',
+      WebSearchTool: 'WebFetch'
+    };
+
+    return aliases[skillName] || skillName;
+  }
+
   public async executeSkillDirect(skillName: string, input: any) {
-    const skill = this.skills.get(skillName);
+    const resolvedName = this.resolveSkillName(skillName);
+    const skill = this.skills.get(resolvedName);
     if (!skill) return { content: `Unknown skill: ${skillName}`, isError: true };
 
     try {
-      const permission = await this.permissionManager.checkPermission(skillName, input);
+      const permission = await this.permissionManager.checkPermission(resolvedName, input);
       if (permission === 'deny') {
-        return { content: `Permission denied for skill: ${skillName}`, isError: true };
+        return { content: `Permission denied for skill: ${resolvedName}`, isError: true };
       }
 
       if (skill.schema?.safeParse) {
         const parsed = skill.schema.safeParse(input ?? {});
         if (!parsed.success) {
           return {
-            content: `Invalid input for ${skillName}: ${parsed.error.issues.map((i: any) => i.message).join('; ')}`,
+            content: `Invalid input for ${resolvedName}: ${parsed.error.issues.map((i: any) => i.message).join('; ')}`,
             isError: true
           };
         }
@@ -199,7 +223,7 @@ export class ThinkingCore {
       return await skill.execute(input, this);
     } catch (error: any) {
       return {
-        content: `Skill execution failed for ${skillName}: ${error?.message || 'Unknown error'}`,
+        content: `Skill execution failed for ${resolvedName}: ${error?.message || 'Unknown error'}`,
         isError: true
       };
     }

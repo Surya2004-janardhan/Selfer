@@ -32,8 +32,12 @@ export class PulseSkill extends BaseSkill {
 
     // Health Check 3: Ollama connection (Optional)
     try {
-       // Mock for now, Phase 2 core improvement later
-       diagnosticResults.push('✅ Ollama connection interface ready.');
+       const { stdout } = await execPromise('curl -s --max-time 2 http://localhost:11434/api/tags');
+       if (stdout && stdout.includes('models')) {
+        diagnosticResults.push('✅ Ollama endpoint reachable.');
+       } else {
+        diagnosticResults.push('⚠️ Ollama endpoint reachable but response was unexpected.');
+       }
     } catch {
        diagnosticResults.push('❌ Ollama connection failed.');
     }

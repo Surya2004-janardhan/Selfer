@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { BaseSkill, SkillResult } from './BaseSkill.js';
-import { ThinkingCore } from '../ThinkingCore.js';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execPromise = promisify(exec);
 
 /**
  * AgenticSwarmSkill.ts
@@ -19,8 +22,39 @@ export class AgenticSwarmSkill extends BaseSkill {
 
   async execute(input: z.infer<typeof this.schema>): Promise<SkillResult> {
     try {
-      // Phase 2: Mock sub-agent result for parity structure
-      return { content: `Agent Swarm Result for task "${input.task}":\nSub-agent verified and solved the component.`, isError: false };
+      const probes = [
+        `pwd`,
+        `ls -1 | head -20`,
+        `find . -maxdepth 2 -type f | head -30`
+      ];
+
+      const outputs = await Promise.all(probes.map(async (command) => {
+        try {
+          const { stdout, stderr } = await execPromise(command, { timeout: 12000 });
+          return `Agent probe: ${command}\n${(stdout || stderr || '').trim()}`;
+        } catch (e: any) {
+          return `Agent probe failed: ${command}\n${e?.message || 'unknown error'}`;
+        }
+      }));
+
+      const specialization = input.specialization || 'generalist';
+      const report = [
+        `Agent Swarm Coordination Report`,
+        `Task: ${input.task}`,
+        `Specialization: ${specialization}`,
+        input.model ? `Model Hint: ${input.model}` : undefined,
+        `---`,
+        ...outputs
+      ].filter(Boolean).join('\n');
+
+      return {
+        content: report,
+        isError: false,
+        metadata: {
+          strategy: 'parallel-probe',
+          probe_count: probes.length
+        }
+      };
     } catch (error: any) {
       return { content: `Agent Swarm Error: ${error.message}`, isError: true };
     }

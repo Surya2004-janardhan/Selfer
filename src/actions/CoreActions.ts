@@ -6,6 +6,14 @@ import { ThinkingCore } from '../ThinkingCore.js';
  * (Ported and renamed from src-reference/commands/)
  */
 export function registerCoreActions(registry: CommandRegistry, core: ThinkingCore) {
+  const unavailable = (name: string, reason: string) => {
+    registry.register({
+      name,
+      description: `${name} compatibility command.`,
+      execute: async () => `${name} is not fully wired in this build. ${reason}`
+    });
+  };
+
   // /pulse - Environment check
   registry.register({
     name: 'pulse',
@@ -213,6 +221,13 @@ export function registerCoreActions(registry: CommandRegistry, core: ThinkingCor
     }
   });
 
+  // /session - alias for /sessions
+  registry.register({
+    name: 'session',
+    description: 'Alias for /sessions.',
+    execute: async () => registry.run('/sessions') as Promise<string>
+  });
+
   // /resume - load previous session into context
   registry.register({
     name: 'resume',
@@ -271,6 +286,129 @@ export function registerCoreActions(registry: CommandRegistry, core: ThinkingCor
       });
 
       return `${diagnostics.content}\n\n---\n${refs.content}`;
+    }
+  });
+
+  // /status - project status overview
+  registry.register({
+    name: 'status',
+    description: 'Show project + git status details.',
+    execute: async () => {
+      const result = await core.executeSkillDirect('Bash', {
+        command: "git rev-parse --abbrev-ref HEAD 2>/dev/null && git --no-pager status --short && echo '---' && pwd"
+      });
+      return result.content;
+    }
+  });
+
+  // /files - quick workspace file inventory
+  registry.register({
+    name: 'files',
+    description: 'List key files in the workspace. Usage: /files [pattern]',
+    execute: async (args) => {
+      const pattern = args[0] || '**/*.{ts,tsx,md,json}';
+      const result = await core.executeSkillDirect('Glob', { pattern, cwd: '.' });
+      return result.content;
+    }
+  });
+
+  // /branch - show branch details
+  registry.register({
+    name: 'branch',
+    description: 'Show current branch and recent commits.',
+    execute: async () => {
+      const result = await core.executeSkillDirect('Bash', {
+        command: 'git rev-parse --abbrev-ref HEAD && git --no-pager log --oneline -5'
+      });
+      return result.content;
+    }
+  });
+
+  // /summary - summarize active operational context
+  registry.register({
+    name: 'summary',
+    description: 'Show concise summary of current run state.',
+    execute: async () => {
+      const stats = core.getCostStats();
+      const skills = core.getSkillList();
+      const sessions = await core.getRecentSessions(3);
+      return [
+        'Selfer Summary',
+        `Provider: ${core.getProviderName()}`,
+        `Model: ${core.getModelName()}`,
+        `Session: ${core.getCurrentSessionId()}`,
+        `Skills: ${skills.length}`,
+        `Tokens: ${stats.totalInput + stats.totalOutput}`,
+        `Recent sessions: ${sessions.map(s => s.sessionId).join(', ') || 'none'}`
+      ].join('\n');
+    }
+  });
+
+  // /stats - alias for /summary
+  registry.register({
+    name: 'stats',
+    description: 'Alias for /summary.',
+    execute: async () => registry.run('/summary') as Promise<string>
+  });
+
+  // /usage - alias for /costs
+  registry.register({
+    name: 'usage',
+    description: 'Alias for /costs.',
+    execute: async () => registry.run('/costs') as Promise<string>
+  });
+
+  // /version - show app/runtime version metadata
+  registry.register({
+    name: 'version',
+    description: 'Show Selfer and runtime versions.',
+    execute: async () => {
+      const result = await core.executeSkillDirect('Bash', {
+        command: 'node -v && npm -v'
+      });
+      return `Selfer v3.1.0\n${result.content}`;
+    }
+  });
+
+  // /model - inspect or switch model in persisted config
+  registry.register({
+    name: 'model',
+    description: 'Get or set model in config. Usage: /model [newModel]',
+    execute: async (args) => {
+      if (!args[0]) {
+        const read = await core.executeSkillDirect('Config', { action: 'read', key: 'model' });
+        return `Current configured model: ${read.content}`;
+      }
+      const update = await core.executeSkillDirect('Config', {
+        action: 'update',
+        key: 'model',
+        value: args[0]
+      });
+      return `${update.content}\nRestart /run to use the new model.`;
+    }
+  });
+
+  // /env - minimal safe env diagnostics
+  registry.register({
+    name: 'env',
+    description: 'Show safe environment diagnostics.',
+    execute: async () => {
+      const keys = ['HOME', 'SHELL', 'PWD', 'TERM', 'LANG'];
+      return keys.map(k => `${k}=${process.env[k] || ''}`).join('\n');
+    }
+  });
+
+  // /permissions - show permission policy snapshot
+  registry.register({
+    name: 'permissions',
+    description: 'Show current permission model summary.',
+    execute: async () => {
+      return [
+        'Permission Model',
+        '- Read/search skills are auto-allowed.',
+        '- Write/exec/task skills are logged and policy-checked.',
+        '- Dangerous bash patterns are denied.'
+      ].join('\n');
     }
   });
 
@@ -350,6 +488,65 @@ export function registerCoreActions(registry: CommandRegistry, core: ThinkingCor
       return result.content;
     }
   });
+
+  // /export - export current transcript view
+  registry.register({
+    name: 'export',
+    description: 'Export a lightweight session snapshot to memory key.',
+    execute: async (args) => {
+      const key = args[0] || `session_${Date.now()}`;
+      const snapshot = await core.getContextSummary();
+      await core.writeMemory(key, snapshot);
+      return `Exported context snapshot to memory key: ${key}`;
+    }
+  });
+
+  // /theme - persistent theme preference
+  registry.register({
+    name: 'theme',
+    description: 'Get or set theme preference. Usage: /theme [name]',
+    execute: async (args) => {
+      if (!args[0]) {
+        const read = await core.executeSkillDirect('Config', { action: 'read', key: 'theme' });
+        return `Current theme: ${read.content || 'default'}`;
+      }
+      const update = await core.executeSkillDirect('Config', {
+        action: 'update',
+        key: 'theme',
+        value: args[0]
+      });
+      return `${update.content}\nTheme preference saved. Restart Selfer to apply UI-level theme changes.`;
+    }
+  });
+
+  // /vim - persistent vim-mode preference
+  registry.register({
+    name: 'vim',
+    description: 'Get or set vim mode. Usage: /vim [on|off]',
+    execute: async (args) => {
+      if (!args[0]) {
+        const read = await core.executeSkillDirect('Config', { action: 'read', key: 'vimMode' });
+        return `vimMode=${read.content || 'off'}`;
+      }
+      const val = args[0].toLowerCase();
+      if (val !== 'on' && val !== 'off') return 'Usage: /vim [on|off]';
+      const update = await core.executeSkillDirect('Config', {
+        action: 'update',
+        key: 'vimMode',
+        value: val
+      });
+      return `${update.content}\nInput layer vim bindings are not yet implemented, but preference is stored.`;
+    }
+  });
+
+  // Compatibility stubs for external integrations
+  unavailable('login', 'Cloud auth flow is not implemented in this CLI variant.');
+  unavailable('logout', 'Cloud auth flow is not implemented in this CLI variant.');
+  unavailable('desktop', 'Desktop handoff is not available in terminal-only build.');
+  unavailable('mobile', 'Mobile handoff is not available in terminal-only build.');
+  unavailable('share', 'Session sharing backend is not configured.');
+  unavailable('voice', 'Voice mode is not implemented yet.');
+  unavailable('pr_comments', 'PR provider integration is not configured.');
 
   // /clear - Clear conversation history
   registry.register({

@@ -178,7 +178,31 @@ export class ThinkingCore {
   public async executeSkillDirect(skillName: string, input: any) {
     const skill = this.skills.get(skillName);
     if (!skill) return { content: `Unknown skill: ${skillName}`, isError: true };
-    return await skill.execute(input, this);
+
+    try {
+      const permission = await this.permissionManager.checkPermission(skillName, input);
+      if (permission === 'deny') {
+        return { content: `Permission denied for skill: ${skillName}`, isError: true };
+      }
+
+      if (skill.schema?.safeParse) {
+        const parsed = skill.schema.safeParse(input ?? {});
+        if (!parsed.success) {
+          return {
+            content: `Invalid input for ${skillName}: ${parsed.error.issues.map((i: any) => i.message).join('; ')}`,
+            isError: true
+          };
+        }
+        return await skill.execute(parsed.data, this);
+      }
+
+      return await skill.execute(input, this);
+    } catch (error: any) {
+      return {
+        content: `Skill execution failed for ${skillName}: ${error?.message || 'Unknown error'}`,
+        isError: true
+      };
+    }
   }
 
   public getSkillList(): { name: string, description: string }[] {
@@ -196,19 +220,24 @@ export class ThinkingCore {
     return this.config.model;
   }
 
+  public clearHistory() {
+    const systemMessage = this.history.find(m => m.role === 'system');
+    this.history = systemMessage ? [systemMessage] : [];
+  }
+
+  public async compactHistoryNow(): Promise<{ before: number; after: number }> {
+    const before = this.history.length;
+    this.history = await HistoryCompactor.compact(this.history, this.provider, this.config.model);
+    return { before, after: this.history.length };
+  }
+
+  public getHistoryLength(): number {
+    return this.history.length;
+  }
+
   async updateTask(id: string, updates: Partial<Task>): Promise<Task | null> {
-    const task = this.tasks.get(id);
-    if (!task) return null;
-    const isNowCompleted = updates.status === 'completed' && task.status !== 'completed';
-    const updated = { 
-      ...task, 
-      ...updates, 
-      updatedAt: new Date().toISOString(),
-      ...(isNowCompleted ? { completedAt: new Date().toISOString() } : {})
-    };
-    this.tasks.set(id, updated);
-    await this.save();
-    return updated;
+    const updated = await this.taskManager.updateTask(id, updates as any);
+    return (updated as Task | null) ?? null;
   }
 
   async *submitMessage(prompt: string): AsyncGenerator<any, void, unknown> {
@@ -327,8 +356,7 @@ export class ThinkingCore {
       if (error.name === 'AbortError') {
         yield { type: 'chunk', content: '\n[Generation Aborted]' };
       } else {
-        yield { type: 'error', content: `Error: ${error.message}` };
-        throw error;
+        yield { type: 'error', content: `Generation error: ${error?.message || 'Unknown provider failure'}` };
       }
     } finally {
       this.abortController = null;

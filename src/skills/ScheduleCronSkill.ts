@@ -9,7 +9,7 @@ import { BaseSkill, SkillResult } from './BaseSkill.js';
 export class ScheduleCronSkill extends BaseSkill {
   name = 'ScheduleCron';
   description = 'Skill for scheduling future or recurring Selfer tasks/commands.';
-
+ 
   schema = z.object({
     cron: z.string().describe('The cron expression for scheduling.'),
     command: z.string().describe('The command to execute.'),

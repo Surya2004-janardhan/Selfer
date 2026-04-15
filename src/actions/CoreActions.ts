@@ -22,7 +22,7 @@ export function registerCoreActions(registry: CommandRegistry, core: ThinkingCor
     description: 'Perform a deep code search across the workspace.',
     execute: async (args) => {
       if (!args[0]) return 'Usage: /radar <query>';
-      const result = await core.executeSkillDirect('RadarSkill', { query: args[0] });
+      const result = await core.executeSkillDirect('Grep', { query: args[0], directory: '.' });
       return result.content;
     }
   });
@@ -105,9 +105,7 @@ export function registerCoreActions(registry: CommandRegistry, core: ThinkingCor
     name: 'clear',
     description: 'Clear the current conversation history.',
     execute: async () => {
-      const history = (core as any).history;
-      const systemMessage = history.find((m: any) => m.role === 'system');
-      (core as any).history = systemMessage ? [systemMessage] : [];
+      core.clearHistory();
       return 'Transcript cleared. Started a new context window.';
     }
   });
@@ -117,18 +115,9 @@ export function registerCoreActions(registry: CommandRegistry, core: ThinkingCor
     name: 'compact',
     description: 'Manually compact conversation history to save tokens.',
     execute: async () => {
-      const HistoryCompactor = (await import('../services/HistoryCompactor.js')).HistoryCompactor;
-      const history = (core as any).history;
-      const initialLength = history.length;
-      
       try {
-        const compacted = await HistoryCompactor.compact(
-          history, 
-          (core as any).provider, 
-          (core as any).config.model
-        );
-        (core as any).history = compacted;
-        return `Successfully compacted history from ${initialLength} to ${compacted.length} messages.`;
+        const { before, after } = await core.compactHistoryNow();
+        return `Successfully compacted history from ${before} to ${after} messages.`;
       } catch (err: any) {
         return `Failed to compact history: ${err.message}`;
       }

@@ -67,16 +67,26 @@ export class HistoryStore {
   async getRecentSessions(limit: number = 5): Promise<{ sessionId: string, timestamp: number }[]> {
     try {
       const files = await fs.readdir(this.historyDir);
-      const sessions = files
-        .filter(f => f.endsWith('.jsonl') && f !== 'global.jsonl')
-        .map(f => ({
+      const sessionFiles = files.filter(f => f.endsWith('.jsonl') && f !== 'global.jsonl');
+      const sessions = await Promise.all(sessionFiles.map(async (f) => {
+        const fullPath = path.join(this.historyDir, f);
+        const stat = await fs.stat(fullPath);
+        return {
           sessionId: f.replace('.jsonl', ''),
-          timestamp: 0 // In real impl, use stat.mtime
-        }));
-      return sessions.slice(-limit);
+          timestamp: stat.mtimeMs
+        };
+      }));
+
+      return sessions
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, limit);
     } catch {
       return [];
     }
+  }
+
+  setCurrentSessionId(sessionId: string) {
+    this.currentSessionId = sessionId;
   }
 
   getCurrentSessionId() {

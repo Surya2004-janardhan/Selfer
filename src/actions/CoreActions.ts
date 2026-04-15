@@ -61,16 +61,29 @@ export function registerCoreActions(registry: CommandRegistry, core: ThinkingCor
   registry.register({
     name: 'config',
     description: 'Show active provider and model configuration.',
-    execute: async () => {
+    execute: async (args) => {
+      if (args[0] === 'get' && args[1]) {
+        const result = await core.executeSkillDirect('Config', { action: 'read', key: args[1] });
+        return result.content;
+      }
+      if (args[0] === 'set' && args[1]) {
+        const value = args.slice(2).join(' ');
+        if (!value) return 'Usage: /config set <key> <value>';
+        const result = await core.executeSkillDirect('Config', { action: 'update', key: args[1], value });
+        return result.content;
+      }
+
       const skills = core.getSkillList();
       const stats = core.getCostStats();
       return `🛠️ Selfer Environment Config [v3.0.0]\n` +
              `-----------------------------------\n` +
              `Provider : ${core.getProviderName()}\n` +
              `Model    : ${core.getModelName()}\n` +
+             `Session  : ${core.getCurrentSessionId()}\n` +
              `Skills   : ${skills.length} active\n` +
              `Usage    : ${stats.totalCost} USD estimated\n` +
-             `CWD      : ${process.cwd()}`;
+             `CWD      : ${process.cwd()}\n\n` +
+             `Usage:\n/config get <key>\n/config set <key> <value>`;
     }
   });
 
@@ -78,7 +91,30 @@ export function registerCoreActions(registry: CommandRegistry, core: ThinkingCor
   registry.register({
     name: 'tasks',
     description: 'List all persistent agentic goals.',
-    execute: async () => {
+    execute: async (args) => {
+      const action = (args[0] || 'list').toLowerCase();
+      if (action === 'create') {
+        const title = args[1];
+        const description = args.slice(2).join(' ');
+        if (!title || !description) return 'Usage: /tasks create <title> <description>';
+        const result = await core.executeSkillDirect('TaskSkill', { title, description, status: 'active' });
+        return result.content;
+      }
+
+      if (action === 'update') {
+        const id = args[1];
+        const status = args[2] as 'active' | 'completed' | 'blocked' | undefined;
+        const description = args.slice(3).join(' ');
+        if (!id || !status) return 'Usage: /tasks update <id> <active|completed|blocked> [description]';
+        const result = await core.executeSkillDirect('TaskSkill', {
+          id,
+          title: 'updated-task',
+          description: description || 'No description update provided.',
+          status
+        });
+        return result.content;
+      }
+
       const tasks = core.getTaskManager().getTasks();
       if (tasks.length === 0) return 'No persistent tasks found.';
       return '📋 Persistent Selfer Goals:\n' + 
@@ -133,17 +169,69 @@ export function registerCoreActions(registry: CommandRegistry, core: ThinkingCor
     execute: async (args) => {
       const action = args[0];
       const key = args[1] || 'main';
+      if (action === 'list') {
+        const items = await core.listDetailedMemories(100);
+        if (items.length === 0) return 'No persistent memories found.';
+        return `Memories (${items.length}):\n` + items.map(i => `- ${i.key} @ ${i.timestamp}`).join('\n');
+      }
       if (action === 'read') {
-        const result = await core.executeSkillDirect('SyntheticOutput', { action: 'read', key });
-        return result.content;
+        const value = await core.readMemory(key);
+        return value ? `Memory[${key}]\n${value}` : `No memory found for key: ${key}`;
       }
       if (action === 'write' || action === 'update') {
         const summary = args.slice(2).join(' ').trim();
         if (!summary) return 'Usage: /memory write <key> <summary text>';
-        const result = await core.executeSkillDirect('SyntheticOutput', { action, key, summary });
-        return result.content;
+        if (action === 'write') {
+          await core.writeMemory(key, summary);
+          return `Memory key ${key} written.`;
+        }
+        const existing = await core.readMemory(key);
+        const next = existing
+          ? `${existing}\n\n[Update ${new Date().toISOString()}]\n${summary}`
+          : summary;
+        await core.writeMemory(key, next);
+        return `Memory key ${key} updated.`;
       }
-      return 'Usage: /memory read <key> | /memory write <key> <text> | /memory update <key> <text>';
+      if (action === 'delete') {
+        const ok = await core.deleteMemory(key);
+        return ok ? `Memory key ${key} deleted.` : `Memory key ${key} not found.`;
+      }
+      return 'Usage: /memory list | /memory read <key> | /memory write <key> <text> | /memory update <key> <text> | /memory delete <key>';
+    }
+  });
+
+  // /sessions - list recent sessions
+  registry.register({
+    name: 'sessions',
+    description: 'List recent conversation sessions.',
+    execute: async () => {
+      const sessions = await core.getRecentSessions(20);
+      if (sessions.length === 0) return 'No previous sessions found.';
+      return 'Recent sessions:\n' + sessions
+        .map(s => `- ${s.sessionId} (${new Date(s.timestamp).toLocaleString()})`)
+        .join('\n');
+    }
+  });
+
+  // /resume - load previous session into context
+  registry.register({
+    name: 'resume',
+    description: 'Resume a previous session. Usage: /resume <sessionId>',
+    execute: async (args) => {
+      const sessionId = args[0];
+      if (!sessionId) return 'Usage: /resume <sessionId> (Tip: run /sessions first)';
+      const result = await core.resumeSession(sessionId);
+      if (result.loaded === 0) return `Session ${sessionId} not found or empty.`;
+      return `Resumed ${sessionId}. Loaded ${result.loaded} historical messages.`;
+    }
+  });
+
+  // /context - display generated context prompt
+  registry.register({
+    name: 'context',
+    description: 'Show the active project and git context summary.',
+    execute: async () => {
+      return core.getContextSummary();
     }
   });
 
@@ -166,12 +254,23 @@ export function registerCoreActions(registry: CommandRegistry, core: ThinkingCor
     name: 'review',
     description: 'Run diagnostics for a file. Usage: /review <file_path>',
     execute: async (args) => {
-      if (!args[0]) return 'Usage: /review <file_path>';
-      const result = await core.executeSkillDirect('CodeAwarenessSkill', {
+      if (!args[0]) {
+        const result = await core.executeSkillDirect('Bash', { command: 'npx tsc --noEmit' });
+        return result.content;
+      }
+
+      const diagnostics = await core.executeSkillDirect('CodeAwarenessSkill', {
         action: 'diagnostics',
         filePath: args[0]
       });
-      return result.content;
+      const refs = await core.executeSkillDirect('LSP', {
+        action: 'references',
+        filePath: args[0],
+        line: 0,
+        character: 0
+      });
+
+      return `${diagnostics.content}\n\n---\n${refs.content}`;
     }
   });
 

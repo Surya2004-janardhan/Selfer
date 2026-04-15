@@ -53,4 +53,26 @@ export class MemoryStore {
       return [];
     }
   }
+
+  async delete(key: string): Promise<boolean> {
+    const memoryPath = path.join(this.memoryDir, `${key}.json`);
+    try {
+      await fs.unlink(memoryPath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async listDetailed(limit: number = 50): Promise<SelferMemory[]> {
+    const keys = await this.listAll();
+    const out: SelferMemory[] = [];
+
+    for (const key of keys.slice(0, limit)) {
+      const item = await this.load(key);
+      if (item) out.push(item);
+    }
+
+    return out.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  }
 }

@@ -1,5 +1,8 @@
 import { z } from 'zod';
 import { BaseSkill, SkillResult } from './BaseSkill.js';
+import fs from 'fs/promises';
+import path from 'path';
+import os from 'os';
 
 /**
  * InquirySkill.ts
@@ -15,12 +18,18 @@ export class AskUserQuestionSkill extends BaseSkill {
   });
 
   async execute(input: z.infer<typeof this.schema>): Promise<SkillResult> {
-    // In a real TUI, this would trigger an input field.
-    // For Phase 2/Loop, we return the question as the content.
+    const pendingPath = path.join(os.homedir(), '.selfer', 'pending-question.json');
+    await fs.mkdir(path.dirname(pendingPath), { recursive: true });
+    await fs.writeFile(
+      pendingPath,
+      JSON.stringify({ question: input.question, timestamp: new Date().toISOString() }, null, 2),
+      'utf8'
+    );
+
     return { 
       content: `Selfer Inquiry: ${input.question}`, 
       isError: false,
-      metadata: { awaits_input: true } 
+      metadata: { awaits_input: true, pending_file: pendingPath } 
     };
   }
 }

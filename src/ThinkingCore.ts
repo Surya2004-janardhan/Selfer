@@ -259,6 +259,51 @@ export class ThinkingCore {
     return this.history.length;
   }
 
+  public async getContextSummary(): Promise<string> {
+    return this.contextManager.getContextPrompt();
+  }
+
+  public async listMemories(): Promise<string[]> {
+    return this.memory.listAll();
+  }
+
+  public async listDetailedMemories(limit: number = 50) {
+    return this.memory.listDetailed(limit);
+  }
+
+  public async readMemory(key: string): Promise<string | null> {
+    const mem = await this.memory.load(key);
+    return mem?.value ?? null;
+  }
+
+  public async writeMemory(key: string, value: string): Promise<void> {
+    await this.memory.save(key, value);
+  }
+
+  public async deleteMemory(key: string): Promise<boolean> {
+    return this.memory.delete(key);
+  }
+
+  public getCurrentSessionId(): string {
+    return this.historyStore.getCurrentSessionId();
+  }
+
+  public async getRecentSessions(limit: number = 10): Promise<Array<{ sessionId: string; timestamp: number }>> {
+    return this.historyStore.getRecentSessions(limit);
+  }
+
+  public async resumeSession(sessionId: string): Promise<{ loaded: number; sessionId: string }> {
+    const loaded = await this.historyStore.getSessionHistory(sessionId);
+    if (loaded.length === 0) {
+      return { loaded: 0, sessionId };
+    }
+
+    this.history = loaded;
+    this.historyStore.setCurrentSessionId(sessionId);
+    this.contextInjected = this.history.some(m => m.role === 'system');
+    return { loaded: loaded.length, sessionId };
+  }
+
   async updateTask(id: string, updates: Partial<Task>): Promise<Task | null> {
     const updated = await this.taskManager.updateTask(id, updates as any);
     return (updated as Task | null) ?? null;

@@ -1,9 +1,9 @@
 // Content for the verify bundled skill.
 // Each .md file is inlined as a string at build time via Bun's text loader.
 
-import cliMd from './verify/examples/cli.md'
-import serverMd from './verify/examples/server.md'
-import skillMd from './verify/SKILL.md'
+import cliMd from './verify/examples/cli.md.js'
+import serverMd from './verify/examples/server.md.js'
+import skillMd from './verify/SKILL.md.js'
 
 export const SKILL_MD: string = skillMd
 

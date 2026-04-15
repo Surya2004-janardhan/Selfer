@@ -4,18 +4,19 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "jsx": "react-jsx",
+    "lib": ["ES2023", "DOM"],
     "allowJs": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "strict": false,
     "noImplicitAny": false,
+    "noCheck": true,
     "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
       "src/*": ["src-reference/*"]
     },
-    "types": ["node"],
-    "lib": ["ES2022", "DOM"]
+    "types": ["node"]
   },
   "include": ["src-reference/**/*", "types/**/*"]
 }

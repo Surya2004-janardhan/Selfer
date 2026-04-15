@@ -422,9 +422,9 @@ export const CommandMetadataSchema = lazySchema(() =>
  * in the standard commands/ directory.
  *
  * Supports three formats:
- * 1. Single path: "./README.md"
- * 2. Array of paths: ["./README.md", "./docs/guide.md"]
- * 3. Object mapping: { "about": { "source": "./README.md", "description": "..." } }
+ * 1. Single path: "./README.md.js"
+ * 2. Array of paths: ["./README.md.js", "./docs/guide.md.js"]
+ * 3. Object mapping: { "about": { "source": "./README.md.js", "description": "..." } }
  */
 const PluginManifestCommandsSchema = lazySchema(() =>
   z.object({
@@ -1633,7 +1633,7 @@ export const KnownMarketplacesFileSchema = lazySchema(() =>
  * Metadata for plugin command definitions.
  *
  * Commands can be defined with either:
- * - `source`: Path to a markdown file (e.g., "./README.md")
+ * - `source`: Path to a markdown file (e.g., "./README.md.js")
  * - `content`: Inline markdown content string
  *
  * INVARIANT: Exactly one of `source` or `content` must be present.

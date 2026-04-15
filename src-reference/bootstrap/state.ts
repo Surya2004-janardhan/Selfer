@@ -1562,6 +1562,11 @@ export function clearInvokedSkillsForAgent(agentId: string): void {
   }
 }
 
+// Node migration compatibility export.
+export function isReplBridgeActive(): boolean {
+  return false
+}
+
 // Slow operations tracking for dev bar
 const MAX_SLOW_OPERATIONS = 10
 const SLOW_OPERATION_TTL_MS = 10000

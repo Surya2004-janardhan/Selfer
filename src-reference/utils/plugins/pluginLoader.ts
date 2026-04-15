@@ -1117,7 +1117,7 @@ export async function cachePlugin(
  *   "keywords": ["coding", "ai", "assistant"],
  *   "homepage": "https://example.com/code-assistant",
  *   "hooks": "./custom-hooks.json",
- *   "commands": ["./extra-commands/*.md"]
+ *   "commands": ["./extra-commands/*.md.js"]
  * }
  * ```
  */
@@ -1401,7 +1401,7 @@ export async function createPluginFromPath(
       typeof firstValue === 'object' &&
       ('source' in firstValue || 'content' in firstValue)
     ) {
-      // Object mapping format: { "about": { "source": "./README.md", ... } }
+      // Object mapping format: { "about": { "source": "./README.md.js", ... } }
       const commandsMetadata: Record<string, CommandMetadata> = {}
       const validPaths: string[] = []
 

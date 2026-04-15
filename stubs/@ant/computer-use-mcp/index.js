@@ -1,0 +1,24 @@
+// Auto-generated package stub export surface for Node migration
+const __stub = {};
+export default __stub;
+export const API_RESIZE_PARAMS = __stub;
+export const ComputerExecutor = __stub;
+export const ComputerUseHostAdapter = __stub;
+export const CoordinateMode = __stub;
+export const CuPermissionRequest = __stub;
+export const CuPermissionResponse = __stub;
+export const CuSubGates = __stub;
+export const DEFAULT_GRANT_FLAGS = __stub;
+export const DisplayGeometry = __stub;
+export const FrontmostApp = __stub;
+export const InstalledApp = __stub;
+export const Logger = __stub;
+export const ResolvePrepareCaptureResult = __stub;
+export const RunningApp = __stub;
+export const ScreenshotResult = __stub;
+export const bindSessionContext = __stub;
+export const buildComputerUseTools = __stub;
+export const createComputerUseMcpServer = __stub;
+export const getSentinelCategory = __stub;
+export const targetImageSize = __stub;
+export const __stubModule = true;

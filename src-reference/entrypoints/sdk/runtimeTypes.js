@@ -1,0 +1,21 @@
+// Auto-generated compatibility stub for missing src-reference module.
+const __stub = {};
+export default __stub;
+export const AnyZodRawShape = __stub;
+export const ForkSessionOptions = __stub;
+export const ForkSessionResult = __stub;
+export const GetSessionInfoOptions = __stub;
+export const GetSessionMessagesOptions = __stub;
+export const InferShape = __stub;
+export const InternalOptions = __stub;
+export const InternalQuery = __stub;
+export const ListSessionsOptions = __stub;
+export const McpSdkServerConfigWithInstance = __stub;
+export const Options = __stub;
+export const Query = __stub;
+export const SDKSession = __stub;
+export const SDKSessionOptions = __stub;
+export const SdkMcpToolDefinition = __stub;
+export const SessionMessage = __stub;
+export const SessionMutationOptions = __stub;
+export const __stubModule = true;

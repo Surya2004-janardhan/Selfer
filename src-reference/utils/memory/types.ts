@@ -1,4 +1,4 @@
-import { feature } from 'bun:bundle'
+import { feature } from 'src/shims/bunBundle.js'
 
 export const MEMORY_TYPE_VALUES = [
   'User',

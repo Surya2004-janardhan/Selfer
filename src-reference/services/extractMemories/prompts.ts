@@ -9,7 +9,7 @@
  * overlap the system prompt's harmlessly.
  */
 
-import { feature } from 'bun:bundle'
+import { feature } from 'src/shims/bunBundle.js'
 import {
   MEMORY_FRONTMATTER_EXAMPLE,
   TYPES_SECTION_COMBINED,

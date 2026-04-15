@@ -6,7 +6,7 @@
  * to avoid circular dependencies.
  */
 
-import { feature } from 'bun:bundle'
+import { feature } from 'src/shims/bunBundle.js'
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
 
 // ============================================================================

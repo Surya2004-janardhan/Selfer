@@ -1,4 +1,4 @@
-import { feature } from 'bun:bundle'
+import { feature } from 'src/shims/bunBundle.js'
 import { extname, isAbsolute, resolve } from 'path'
 import {
   fileHistoryEnabled,

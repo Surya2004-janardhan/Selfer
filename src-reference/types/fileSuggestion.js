@@ -1,5 +1,10 @@
-// Auto-generated compatibility stub for missing src-reference module.
-const __stub = {};
-export default __stub;
-export const FileSuggestionCommandInput = __stub;
-export const __stubModule = true;
+/**
+ * Runtime schema metadata for file suggestion command input.
+ * Type users consume this via type-only imports in TS files.
+ */
+export const FileSuggestionCommandInput = Object.freeze({
+  kind: "FileSuggestionCommandInput",
+  required: ["session_id", "cwd", "query"],
+});
+
+export default FileSuggestionCommandInput;

@@ -1,4 +1,15 @@
-// Auto-generated compatibility stub for missing src-reference module.
-const __stub = {};
-export default __stub;
-export const __stubModule = true;
+let initialized = false;
+
+export function initBundledWorkflows() {
+  initialized = true;
+  return initialized;
+}
+
+export function areBundledWorkflowsInitialized() {
+  return initialized;
+}
+
+export default {
+  initBundledWorkflows,
+  areBundledWorkflowsInitialized,
+};

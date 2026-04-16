@@ -7,6 +7,8 @@
   "scripts": {
     "start": "tsx src-reference/main.tsx",
     "dev": "tsx src-reference/main.tsx",
+    "start:ollama": "CLAUDE_CODE_USE_OLLAMA=1 tsx src-reference/main.tsx",
+    "start:qwen": "CLAUDE_CODE_USE_OLLAMA=1 OLLAMA_MODEL=qwen2.5-coder:7b tsx src-reference/main.tsx",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "report:migration": "node scripts/generate-migration-report.cjs"
   },

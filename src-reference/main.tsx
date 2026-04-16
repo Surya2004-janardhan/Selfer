@@ -90,7 +90,7 @@ import { filterCommandsForRemoteMode, getCommands } from './commands.js';
 import type { StatsStore } from './context/stats.js';
 import { launchAssistantInstallWizard, launchAssistantSessionChooser, launchInvalidSettingsDialog, launchResumeChooser, launchSnapshotUpdateDialog, launchTeleportRepoMismatchDialog, launchTeleportResumeWrapper } from './dialogLaunchers.js';
 import { SHOW_CURSOR } from './ink/termio/dec.js';
-import { exitWithError, exitWithMessage, getRenderContext, renderAndRun, showSetupScreens } from './interactiveHelpers.js';
+import { exitWithError, exitWithMessage, getRenderContext, renderAndRun, showSetupDialog, showSetupScreens } from './interactiveHelpers.js';
 import { initBuiltinPlugins } from './plugins/bundled/index.js';
 /* eslint-enable @typescript-eslint/no-require-imports */
 import { checkQuotaStatus } from './services/claudeAiLimits.js';
@@ -116,8 +116,10 @@ import { getGhAuthStatus } from './utils/github/ghAuthStatus.js';
 import { safeParseJSON } from './utils/json.js';
 import { logError } from './utils/log.js';
 import { getModelDeprecationWarning } from './utils/model/deprecation.js';
-import { getDefaultMainLoopModel, getUserSpecifiedModelSetting, normalizeModelStringForAPI, parseUserSpecifiedModel } from './utils/model/model.js';
+import { type ModelSetting, getDefaultMainLoopModel, getUserSpecifiedModelSetting, normalizeModelStringForAPI, parseUserSpecifiedModel } from './utils/model/model.js';
 import { ensureModelStringsInitialized } from './utils/model/modelStrings.js';
+import { getModelOptions } from './utils/model/modelOptions.js';
+import { getAPIProvider, type APIProvider } from './utils/model/providers.js';
 import { PERMISSION_MODES } from './utils/permissions/PermissionMode.js';
 import { checkAndDisableBypassPermissions, getAutoModeEnabledStateIfCached, initializeToolPermissionContext, initialPermissionModeFromCLI, isDefaultPermissionModeAuto, parseToolListFromCLI, removeDangerousPermissions, stripDangerousPermissionsForAutoMode, verifyAutoModeGateAccess } from './utils/permissions/permissionSetup.js';
 import { cleanupOrphanedPluginVersionsInBackground } from './utils/plugins/cacheUtils.js';
@@ -261,6 +263,121 @@ function isBeingDebugged() {
     // Ignore error and fall back to argument detection
     return hasInspectArg || hasInspectEnv;
   }
+}
+
+const DEFAULT_OLLAMA_BASE_URL = 'http://127.0.0.1:11434';
+
+function getOllamaBaseUrl(): string {
+  return (process.env.OLLAMA_BASE_URL || DEFAULT_OLLAMA_BASE_URL).replace(/\/+$/, '');
+}
+
+async function getInstalledOllamaModels(timeoutMs = 1200): Promise<string[]> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${getOllamaBaseUrl()}/api/tags`, {
+      method: 'GET',
+      signal: controller.signal
+    });
+    if (!response.ok) {
+      return [];
+    }
+    const data = await response.json() as {
+      models?: Array<{
+        name?: string;
+        model?: string;
+      }>;
+    };
+    return uniq((data.models ?? []).map(model => model.name || model.model || '').filter(Boolean));
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function createStartupModelOptionsMessage(): Promise<MessageType> {
+  const providerOrder: APIProvider[] = ['firstParty', 'bedrock', 'vertex', 'foundry', 'ollama'];
+  const sharedAliases = ['default', 'sonnet', 'opus', 'haiku', 'sonnet[1m]', 'opus[1m]'];
+  const currentProvider = getAPIProvider();
+  const currentProviderOptions = uniq(getModelOptions(isFastModeEnabled()).map(option => option.value === null ? 'default' : String(option.value)));
+  const installedOllamaModels = await getInstalledOllamaModels();
+
+  const providerModels = new Map<APIProvider, string[]>();
+  for (const provider of providerOrder) {
+    providerModels.set(provider, [...sharedAliases]);
+  }
+  providerModels.set(currentProvider, currentProviderOptions.length > 0 ? currentProviderOptions : sharedAliases);
+
+  if (installedOllamaModels.length > 0) {
+    const existing = providerModels.get('ollama') ?? [...sharedAliases];
+    providerModels.set('ollama', uniq([...installedOllamaModels, ...existing]));
+  }
+
+  if (process.env.OLLAMA_MODEL) {
+    const existing = providerModels.get('ollama') ?? [...sharedAliases];
+    providerModels.set('ollama', uniq([process.env.OLLAMA_MODEL, ...existing]));
+  }
+
+  const providerLines = providerOrder.map(provider => {
+    const models = providerModels.get(provider) ?? sharedAliases;
+    return `- ${provider}: ${models.join(', ')}`;
+  }).join('\n');
+
+  return createSystemMessage(`Available model options by provider:\n${providerLines}\n\nCurrent provider: ${currentProvider}\nUse /model to pick a model now, or launch with --model <name>.`, 'info');
+}
+
+function applySelectedProvider(provider: APIProvider): void {
+  delete process.env.CLAUDE_CODE_USE_BEDROCK;
+  delete process.env.CLAUDE_CODE_USE_VERTEX;
+  delete process.env.CLAUDE_CODE_USE_FOUNDRY;
+  delete process.env.CLAUDE_CODE_USE_OLLAMA;
+
+  if (provider === 'bedrock') {
+    process.env.CLAUDE_CODE_USE_BEDROCK = '1';
+  } else if (provider === 'vertex') {
+    process.env.CLAUDE_CODE_USE_VERTEX = '1';
+  } else if (provider === 'foundry') {
+    process.env.CLAUDE_CODE_USE_FOUNDRY = '1';
+  } else if (provider === 'ollama') {
+    process.env.CLAUDE_CODE_USE_OLLAMA = '1';
+  }
+}
+
+async function launchStartupProviderPicker(root: Root): Promise<APIProvider | null> {
+  const [{ Box, Text }, { Select }] = await Promise.all([import('./ink.js'), import('./components/CustomSelect/index.js')]);
+  const currentProvider = getAPIProvider();
+
+  return showSetupDialog<APIProvider | null>(root, done => <Box flexDirection="column">
+      <Text>Select provider for this session</Text>
+      <Text dimColor>{`Current: ${currentProvider}`}</Text>
+      <Select options={[{
+      value: 'firstParty',
+      label: 'Anthropic API',
+      description: 'Use first-party Anthropic endpoints'
+    }, {
+      value: 'bedrock',
+      label: 'AWS Bedrock',
+      description: 'Use AWS Bedrock provider'
+    }, {
+      value: 'vertex',
+      label: 'Google Vertex',
+      description: 'Use Google Vertex provider'
+    }, {
+      value: 'foundry',
+      label: 'Azure Foundry',
+      description: 'Use Azure Foundry provider'
+    }, {
+      value: 'ollama',
+      label: 'Ollama (local)',
+      description: 'Use local Ollama models'
+    }]} defaultValue={currentProvider} onChange={value => done(value as APIProvider)} onCancel={() => done(null)} />
+    </Box>);
+}
+
+async function launchStartupModelPicker(root: Root, currentModel: ModelSetting): Promise<ModelSetting | undefined> {
+  const { ModelPicker } = await import('./components/ModelPicker.js');
+  return showSetupDialog<ModelSetting | undefined>(root, done => <ModelPicker initial={currentModel} sessionModel={null} onSelect={(model, _effort) => done(model)} onCancel={() => done(undefined)} isStandaloneCommand />);
 }
 
 // Exit if we detect node debugging or inspection
@@ -801,7 +918,10 @@ export async function main() {
   const hasPrintFlag = cliArgs.includes('-p') || cliArgs.includes('--print');
   const hasInitOnlyFlag = cliArgs.includes('--init-only');
   const hasSdkUrl = cliArgs.some(arg => arg.startsWith('--sdk-url'));
-  const isNonInteractive = hasPrintFlag || hasInitOnlyFlag || hasSdkUrl || !process.stdout.isTTY;
+  // Some environments proxy stdout while keeping stderr attached to a real
+  // terminal. Treat either stream being a TTY as interactive-capable.
+  const hasInteractiveTty = Boolean(process.stdout.isTTY || process.stderr.isTTY);
+  const isNonInteractive = hasPrintFlag || hasInitOnlyFlag || hasSdkUrl || !hasInteractiveTty;
 
   // Stop capturing early input for non-interactive modes
   if (isNonInteractive) {
@@ -3765,6 +3885,23 @@ async function run(): Promise<CommanderCommand> {
       // the first API call so the model always sees hook context.
       const pendingHookMessages = hooksPromise && hookMessages.length === 0 ? hooksPromise : undefined;
       profileCheckpoint('action_after_hooks');
+
+      // Fresh interactive sessions get a startup chooser: provider first,
+      // then model. If model is explicitly pinned, keep existing behavior.
+      const shouldShowStartupPicker = !options.model && !process.env.ANTHROPIC_MODEL;
+      if (shouldShowStartupPicker) {
+        const selectedProvider = await launchStartupProviderPicker(root);
+        if (selectedProvider) {
+          applySelectedProvider(selectedProvider);
+          const selectedModel = await launchStartupModelPicker(root, initialState.mainLoopModel);
+          if (selectedModel !== undefined) {
+            initialState.mainLoopModel = selectedModel;
+            setMainLoopModelOverride(selectedModel);
+            setInitialMainLoopModel(selectedModel);
+          }
+        }
+      }
+
       maybeActivateProactive(options);
       maybeActivateBrief(options);
       // Persist the current mode for fresh sessions so future resumes know what mode was used
@@ -3795,14 +3932,19 @@ async function run(): Promise<CommanderCommand> {
           deepLinkBanner = createSystemMessage('Launched with a pre-filled prompt — review it before pressing Enter.', 'warning');
         }
       }
-      const initialMessages = deepLinkBanner ? [deepLinkBanner, ...hookMessages] : hookMessages.length > 0 ? hookMessages : undefined;
+      const startupModelOptionsMessage = await createStartupModelOptionsMessage();
+      const initialMessages = [
+        ...(deepLinkBanner ? [deepLinkBanner] : []),
+        startupModelOptionsMessage,
+        ...hookMessages
+      ];
       await launchRepl(root, {
         getFpsMetrics,
         stats,
         initialState
       }, {
         ...sessionConfig,
-        initialMessages,
+        initialMessages: initialMessages.length > 0 ? initialMessages : undefined,
         pendingHookMessages
       }, renderAndRun);
     }

@@ -1,6 +1,7 @@
 import Anthropic, { type ClientOptions } from '@anthropic-ai/sdk'
 import { randomUUID } from 'crypto'
 import type { GoogleAuth } from 'google-auth-library'
+import { createOllamaAnthropicCompatClient } from './ollamaAnthropicCompat.js'
 import {
   checkAndRefreshOAuthTokenIfNeeded,
   getAnthropicApiKey,
@@ -98,6 +99,12 @@ export async function getAnthropicClient({
   fetchOverride?: ClientOptions['fetch']
   source?: string
 }): Promise<Anthropic> {
+  if (isEnvTruthy(process.env.CLAUDE_CODE_USE_OLLAMA)) {
+    // Runtime compatibility shim that exposes Anthropic-like beta.messages
+    // methods while talking to local Ollama /api/chat.
+    return createOllamaAnthropicCompatClient() as unknown as Anthropic
+  }
+
   const containerId = process.env.CLAUDE_CODE_CONTAINER_ID
   const remoteSessionId = process.env.CLAUDE_CODE_REMOTE_SESSION_ID
   const clientApp = process.env.CLAUDE_AGENT_SDK_CLIENT_APP

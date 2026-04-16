@@ -1,15 +1,15 @@
-// Auto-generated compatibility stub for missing src-reference module.
-const __stub = {};
-export default __stub;
-export const AgentToolProgress = __stub;
-export const BashProgress = __stub;
-export const MCPProgress = __stub;
-export const PowerShellProgress = __stub;
-export const REPLToolProgress = __stub;
-export const SdkWorkflowProgress = __stub;
-export const ShellProgress = __stub;
-export const SkillToolProgress = __stub;
-export const TaskOutputProgress = __stub;
-export const ToolProgressData = __stub;
-export const WebSearchProgress = __stub;
-export const __stubModule = true;
+const marker = Object.freeze({ kind: "tool-progress" });
+
+export const ToolProgressData = marker;
+export const AgentToolProgress = marker;
+export const BashProgress = marker;
+export const ShellProgress = marker;
+export const PowerShellProgress = marker;
+export const REPLToolProgress = marker;
+export const SkillToolProgress = marker;
+export const TaskOutputProgress = marker;
+export const MCPProgress = marker;
+export const WebSearchProgress = marker;
+export const SdkWorkflowProgress = marker;
+
+export default ToolProgressData;

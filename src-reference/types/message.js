@@ -1,41 +1,55 @@
-// Auto-generated compatibility stub for missing src-reference module.
-const __stub = {};
-export default __stub;
-export const AssistantMessage = __stub;
-export const AttachmentMessage = __stub;
-export const CollapsedReadSearchGroup = __stub;
-export const CollapsibleMessage = __stub;
-export const GroupedToolUseMessage = __stub;
-export const HookResultMessage = __stub;
-export const Message = __stub;
-export const MessageOrigin = __stub;
-export const NormalizedAssistantMessage = __stub;
-export const NormalizedMessage = __stub;
-export const NormalizedUserMessage = __stub;
-export const PartialCompactDirection = __stub;
-export const ProgressMessage = __stub;
-export const RenderableMessage = __stub;
-export const RequestStartEvent = __stub;
-export const StopHookInfo = __stub;
-export const StreamEvent = __stub;
-export const SystemAPIErrorMessage = __stub;
-export const SystemAgentsKilledMessage = __stub;
-export const SystemApiMetricsMessage = __stub;
-export const SystemAwaySummaryMessage = __stub;
-export const SystemBridgeStatusMessage = __stub;
-export const SystemCompactBoundaryMessage = __stub;
-export const SystemInformationalMessage = __stub;
-export const SystemLocalCommandMessage = __stub;
-export const SystemMemorySavedMessage = __stub;
-export const SystemMessage = __stub;
-export const SystemMessageLevel = __stub;
-export const SystemMicrocompactBoundaryMessage = __stub;
-export const SystemPermissionRetryMessage = __stub;
-export const SystemScheduledTaskFireMessage = __stub;
-export const SystemStopHookSummaryMessage = __stub;
-export const SystemThinkingMessage = __stub;
-export const SystemTurnDurationMessage = __stub;
-export const TombstoneMessage = __stub;
-export const ToolUseSummaryMessage = __stub;
-export const UserMessage = __stub;
-export const __stubModule = true;
+const marker = Object.freeze({ kind: "type-marker" });
+
+export const MessageOrigin = Object.freeze({
+  HUMAN: "human",
+  AGENT: "agent",
+  SYSTEM: "system",
+});
+
+export const SystemMessageLevel = Object.freeze({
+  INFO: "info",
+  WARNING: "warning",
+  ERROR: "error",
+});
+
+export const PartialCompactDirection = Object.freeze({
+  FORWARD: "forward",
+  BACKWARD: "backward",
+});
+
+export const Message = marker;
+export const UserMessage = marker;
+export const AssistantMessage = marker;
+export const AttachmentMessage = marker;
+export const SystemMessage = marker;
+export const ProgressMessage = marker;
+export const HookResultMessage = marker;
+export const RenderableMessage = marker;
+export const CollapsibleMessage = marker;
+export const GroupedToolUseMessage = marker;
+export const CollapsedReadSearchGroup = marker;
+export const NormalizedMessage = marker;
+export const NormalizedUserMessage = marker;
+export const NormalizedAssistantMessage = marker;
+export const RequestStartEvent = marker;
+export const StreamEvent = marker;
+export const StopHookInfo = marker;
+export const SystemAPIErrorMessage = marker;
+export const SystemAgentsKilledMessage = marker;
+export const SystemApiMetricsMessage = marker;
+export const SystemAwaySummaryMessage = marker;
+export const SystemBridgeStatusMessage = marker;
+export const SystemCompactBoundaryMessage = marker;
+export const SystemInformationalMessage = marker;
+export const SystemLocalCommandMessage = marker;
+export const SystemMemorySavedMessage = marker;
+export const SystemMicrocompactBoundaryMessage = marker;
+export const SystemPermissionRetryMessage = marker;
+export const SystemScheduledTaskFireMessage = marker;
+export const SystemStopHookSummaryMessage = marker;
+export const SystemThinkingMessage = marker;
+export const SystemTurnDurationMessage = marker;
+export const TombstoneMessage = marker;
+export const ToolUseSummaryMessage = marker;
+
+export default Message;

@@ -1,11 +1,37 @@
-// Auto-generated compatibility stub for missing src-reference module.
-const __stub = {};
-export default __stub;
-export const NotebookCell = __stub;
-export const NotebookCellOutput = __stub;
-export const NotebookCellSource = __stub;
-export const NotebookCellSourceOutput = __stub;
-export const NotebookCellType = __stub;
-export const NotebookContent = __stub;
-export const NotebookOutputImage = __stub;
-export const __stubModule = true;
+export const NotebookCellType = Object.freeze({
+  CODE: "code",
+  MARKDOWN: "markdown",
+  RAW: "raw",
+});
+
+export function isNotebookCellType(value) {
+  return value === "code" || value === "markdown" || value === "raw";
+}
+
+export const NotebookCellSource = Object.freeze({
+  kind: "NotebookCellSource",
+});
+
+export const NotebookCellOutput = Object.freeze({
+  kind: "NotebookCellOutput",
+});
+
+export const NotebookOutputImage = Object.freeze({
+  kind: "NotebookOutputImage",
+});
+
+export const NotebookCellSourceOutput = Object.freeze({
+  kind: "NotebookCellSourceOutput",
+});
+
+export const NotebookCell = Object.freeze({
+  kind: "NotebookCell",
+  required: ["cell_type", "source"],
+});
+
+export const NotebookContent = Object.freeze({
+  kind: "NotebookContent",
+  required: ["cells"],
+});
+
+export default NotebookContent;

@@ -1,36 +1,50 @@
-# Migration Report
+# Migration Priority Report
 
-Generated at: 2026-04-16T05:50:41.975Z
+Generated at: 2026-04-16T05:50:41.976Z
+
+## Triage Strategy
+
+- P0: Runtime-core and protocol-critical replacements (must replace first)
+- P1: High-usage command/UI/service replacements (second wave)
+- P2: Low-frequency or peripheral replacements (final wave)
 
 ## Summary
 
-- Auto-generated compatibility stubs: 84
-- Markdown import wrappers (.md.js): 32
-- Local stub packages: 11
-- Unresolved local imports: 0
+- P0 compatibility files: 0
+- P1 compatibility files: 54
+- P2 compatibility files: 30
+- P0 stub packages: 3
+- P1 stub packages: 7
+- P2 stub packages: 1
 
-## Stub Packages
+## P0 Stub Packages (Replace First)
+
+- @anthropic-ai/claude-agent-sdk
+- @anthropic-ai/mcpb
+- @anthropic-ai/sandbox-runtime
+
+## P1 Stub Packages
 
 - @ant/claude-for-chrome-mcp
 - @ant/computer-use-input
 - @ant/computer-use-mcp
 - @ant/computer-use-swift
-- @anthropic-ai/claude-agent-sdk
-- @anthropic-ai/mcpb
-- @anthropic-ai/sandbox-runtime
 - audio-capture.node
-- code-excerpt
 - color-diff-napi
 - modifiers-napi
 
-## Auto-Generated Compatibility Files
+## P2 Stub Packages
 
-- src-reference/assistant/gate.js
-- src-reference/assistant/index.js
-- src-reference/assistant/sessionDiscovery.js
+- code-excerpt
+
+## P0 Compatibility Files (Replace First)
+
+- none
+
+## P1 Compatibility Files
+
 - src-reference/bridge/peerSessions.js
 - src-reference/bridge/webhookSanitizer.js
-- src-reference/cli/transports/Transport.js
 - src-reference/commands/agents-platform/index.js
 - src-reference/commands/assistant/index.js
 - src-reference/commands/buddy/index.js
@@ -64,9 +78,34 @@ Generated at: 2026-04-16T05:50:41.975Z
 - src-reference/components/tasks/WorkflowDetailDialog.js
 - src-reference/components/ui/option.js
 - src-reference/components/wizard/types.js
+- src-reference/hooks/notifs/useAntOrgWarningNotification.js
+- src-reference/services/compact/cachedMCConfig.js
+- src-reference/services/compact/reactiveCompact.js
+- src-reference/services/compact/snipCompact.js
+- src-reference/services/compact/snipProjection.js
+- src-reference/services/oauth/types.js
+- src-reference/services/skillSearch/featureCheck.js
+- src-reference/services/skillSearch/localSearch.js
+- src-reference/services/skillSearch/prefetch.js
+- src-reference/services/skillSearch/remoteSkillLoader.js
+- src-reference/services/skillSearch/remoteSkillState.js
+- src-reference/services/skillSearch/signals.js
+- src-reference/services/skillSearch/telemetry.js
+- src-reference/utils/filePersistence/types.js
+- src-reference/utils/protectedNamespace.js
+- src-reference/utils/secureStorage/types.js
+- src-reference/utils/taskSummary.js
+- src-reference/utils/udsClient.js
+- src-reference/utils/udsMessaging.js
+
+## P2 Compatibility Files
+
+- src-reference/assistant/gate.js
+- src-reference/assistant/index.js
+- src-reference/assistant/sessionDiscovery.js
+- src-reference/cli/transports/Transport.js
 - src-reference/constants/querySource.js
 - src-reference/coordinator/workerAgent.js
-- src-reference/hooks/notifs/useAntOrgWarningNotification.js
 - src-reference/ink/cursor.js
 - src-reference/ink/events/paste-event.js
 - src-reference/ink/events/resize-event.js
@@ -76,24 +115,12 @@ Generated at: 2026-04-16T05:50:41.975Z
 - src-reference/memdir/memoryShapeTelemetry.js
 - src-reference/proactive/index.js
 - src-reference/proactive/useProactive.js
-- src-reference/services/compact/cachedMCConfig.js
-- src-reference/services/compact/reactiveCompact.js
-- src-reference/services/compact/snipCompact.js
-- src-reference/services/compact/snipProjection.js
 - src-reference/services/contextCollapse/index.js
 - src-reference/services/contextCollapse/operations.js
 - src-reference/services/contextCollapse/persist.js
 - src-reference/services/lsp/types.js
-- src-reference/services/oauth/types.js
 - src-reference/services/remoteManagedSettings/securityCheck.jsx
 - src-reference/services/sessionTranscript/sessionTranscript.js
-- src-reference/services/skillSearch/featureCheck.js
-- src-reference/services/skillSearch/localSearch.js
-- src-reference/services/skillSearch/prefetch.js
-- src-reference/services/skillSearch/remoteSkillLoader.js
-- src-reference/services/skillSearch/remoteSkillState.js
-- src-reference/services/skillSearch/signals.js
-- src-reference/services/skillSearch/telemetry.js
 - src-reference/services/tips/types.js
 - src-reference/skills/bundled/dream.js
 - src-reference/skills/bundled/hunter.js
@@ -103,14 +130,8 @@ Generated at: 2026-04-16T05:50:41.975Z
 - src-reference/ssh/createSSHSession.js
 - src-reference/tasks/LocalWorkflowTask/LocalWorkflowTask.js
 - src-reference/tasks/MonitorMcpTask/MonitorMcpTask.js
-- src-reference/utils/filePersistence/types.js
-- src-reference/utils/protectedNamespace.js
-- src-reference/utils/secureStorage/types.js
-- src-reference/utils/taskSummary.js
-- src-reference/utils/udsClient.js
-- src-reference/utils/udsMessaging.js
 
-## Markdown Wrapper Files
+## Markdown Wrapper Backlog
 
 - src-reference/skills/bundled/claude-api/SKILL.md.js
 - src-reference/skills/bundled/claude-api/csharp/claude-api.md.js

@@ -1,5 +1,5 @@
-// Auto-generated compatibility stub for missing src-reference module.
-const __stub = {};
-export default __stub;
-export const DeepImmutable = __stub;
-export const __stubModule = true;
+export const DeepImmutable = Object.freeze({
+  kind: "DeepImmutable",
+});
+
+export default DeepImmutable;

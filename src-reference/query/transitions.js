@@ -1,6 +1,4 @@
-// Auto-generated compatibility stub for missing src-reference module.
-const __stub = {};
-export default __stub;
-export const Continue = __stub;
-export const Terminal = __stub;
-export const __stubModule = true;
+export const Continue = Object.freeze({ kind: 'continue-transition' });
+export const Terminal = Object.freeze({ kind: 'terminal-transition' });
+
+export default Object.freeze({ Continue, Terminal });

@@ -1,4 +1,8 @@
-// Auto-generated compatibility stub
-const __stub = {};
-export default __stub;
-export const __stubModule = true;
+/**
+ * Runtime placeholder for generated SDK settings types.
+ */
+const settingsTypes = Object.freeze({
+  kind: "sdk-settings-types-generated",
+});
+
+export default settingsTypes;

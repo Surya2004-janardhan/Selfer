@@ -1,4 +1,7 @@
-// Auto-generated compatibility stub for missing src-reference module.
-const __stub = {};
-export const TungstenLiveMonitor = __stub;
-export const __stubModule = true;
+import * as React from 'react';
+
+export function TungstenLiveMonitor() {
+  return null;
+}
+
+export default TungstenLiveMonitor;

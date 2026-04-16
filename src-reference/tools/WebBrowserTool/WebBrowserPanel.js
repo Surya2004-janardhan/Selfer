@@ -1,4 +1,7 @@
-// Auto-generated compatibility stub for missing src-reference module.
-const __stub = {};
-export default __stub;
-export const __stubModule = true;
+import * as React from 'react';
+
+export function WebBrowserPanel() {
+  return null;
+}
+
+export default WebBrowserPanel;

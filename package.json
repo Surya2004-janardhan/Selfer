@@ -3,12 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "bin": {
+    "selfer": "./bin/selfer.mjs"
+  },
   "description": "Node/npm TypeScript migration shell for src-reference",
   "scripts": {
-    "start": "tsx src-reference/main.tsx",
-    "dev": "tsx src-reference/main.tsx",
-    "start:ollama": "CLAUDE_CODE_USE_OLLAMA=1 tsx src-reference/main.tsx",
-    "start:qwen": "CLAUDE_CODE_USE_OLLAMA=1 OLLAMA_MODEL=qwen2.5-coder:7b tsx src-reference/main.tsx",
+    "start": "tsx src-reference/entrypoints/cli.tsx",
+    "dev": "tsx src-reference/entrypoints/cli.tsx",
+    "start:ollama": "CLAUDE_CODE_USE_OLLAMA=1 tsx src-reference/entrypoints/cli.tsx",
+    "start:qwen": "CLAUDE_CODE_USE_OLLAMA=1 OLLAMA_MODEL=qwen2.5-coder:7b tsx src-reference/entrypoints/cli.tsx",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "report:migration": "node scripts/generate-migration-report.cjs"
   },

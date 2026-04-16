@@ -1,3 +1,4 @@
+import '../node-prelude.js';
 import { feature } from 'src/shims/bunBundle.js';
 
 // Bugfix for corepack auto-pinning, which adds yarnpkg to peoples' package.jsons

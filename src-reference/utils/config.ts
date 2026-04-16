@@ -546,6 +546,15 @@ export type GlobalConfig = {
   // undefined = use default (see getRemoteControlAtStartup() for precedence)
   remoteControlAtStartup?: boolean
 
+  // Startup picker defaults for fresh interactive sessions.
+  startupPickerProvider?:
+    | 'firstParty'
+    | 'bedrock'
+    | 'vertex'
+    | 'foundry'
+    | 'ollama'
+  startupPickerModel?: string | null
+
   // Cached extra usage disabled reason from the last API response
   // undefined = no cache, null = extra usage enabled, string = disabled reason.
   cachedExtraUsageDisabledReason?: string | null
@@ -662,6 +671,8 @@ export const GLOBAL_CONFIG_KEYS = [
   'permissionExplainerEnabled',
   'prStatusFooterEnabled',
   'remoteControlAtStartup',
+  'startupPickerProvider',
+  'startupPickerModel',
   'remoteDialogSeen',
 ] as const
 
